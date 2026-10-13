@@ -38,9 +38,34 @@ jobs:
       - name: Package (Windows)
         if: runner.os == 'Windows'
         run: Compress-Archive -Path dist/SkyStamp -DestinationPath ${{ matrix.artifact }}
-      - name: Package (macOS)
+      - name: Package (macOS, signed + notarized when secrets are set)
         if: runner.os == 'macOS'
-        run: hdiutil create -volname SkyStamp -srcfolder dist/SkyStamp.app -ov -format UDZO ${{ matrix.artifact }}
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          if [ -z "$MACOS_CERT_P12" ]; then
+            echo "No signing secrets: building an unsigned dmg"
+            hdiutil create -volname SkyStamp -srcfolder dist/SkyStamp.app -ov -format UDZO ${{ matrix.artifact }}
+            exit 0
+          fi
+          # Throwaway keychain holding the Developer ID certificate
+          KC="$RUNNER_TEMP/sign.keychain-db"; KC_PW="$(uuidgen)"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          echo "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          ASC_KEY_PATH="$RUNNER_TEMP/AuthKey.p8" ASC_KEY_ID="$ASC_KEY_ID" ASC_ISSUER_ID="$ASC_ISSUER_ID" \
+            packaging/macos_sign.sh "$MACOS_SIGN_IDENTITY" dist/SkyStamp.app ${{ matrix.artifact }}
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/AuthKey.p8"
       - name: Package (Linux AppImage)
         if: runner.os == 'Linux'
         run: |
