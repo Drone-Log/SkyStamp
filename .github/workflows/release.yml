@@ -56,7 +56,7 @@ jobs:
         run: |
           if [ -z "$MACOS_CERT_P12" ]; then
             echo "No signing secrets: building an unsigned dmg"
-            hdiutil create -volname SkyStamp -srcfolder dist/SkyStamp.app -ov -format UDZO ${{ matrix.artifact }}
+            python packaging/make_dmg.py dist/SkyStamp.app ${{ matrix.artifact }}
             exit 0
           fi
           # Throwaway keychain holding the Developer ID certificate
