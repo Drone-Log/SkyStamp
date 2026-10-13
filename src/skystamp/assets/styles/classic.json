@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "name": "Classic",
+  "description": "Flight data top-left, camera top-right, speed box at the bottom, GPS and time in the corners.",
+  "elements": [
+    {"type": "data", "x": 0, "y": 0, "anchor": "tl", "size": 30, "direction": "column", "labels": "prefix",
+     "fields": ["altitude", "speed", "vspeed", "home", "distance", "heading", "battery"]},
+    {"type": "info", "x": 1, "y": 0, "anchor": "tr", "size": 30, "items": ["camera"], "direction": "column"},
+    {"type": "speedbox", "x": 0.5, "y": 1, "anchor": "b", "size": 56, "field": "speed"},
+    {"type": "info", "x": 0, "y": 1, "anchor": "bl", "size": 26, "items": ["gps", "coords"]},
+    {"type": "info", "x": 1, "y": 1, "anchor": "br", "size": 26, "items": ["time"]}
+  ]
+}

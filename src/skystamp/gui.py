@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 
 from PIL.ImageQt import ImageQt
-from PySide6.QtCore import QObject, QRunnable, QSettings, Qt, QThread, QThreadPool, QTimer, QUrl, Signal
+from PySide6.QtCore import QObject, QPointF, QRunnable, QSettings, Qt, QThread, QThreadPool, QTimer, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -25,19 +25,23 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
     QSlider,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from . import __version__
 from .maptiles import PROVIDERS
-from .styles import DEFAULT_FIELDS, FIELDS, POSITIONS, STYLES, OverlayOptions
+from .editor import StyleEditor, move_element
+from .styles import DEFAULT_FIELDS, FIELDS, POSITIONS, OverlayOptions, SpecStyle
+from .styles import library as style_lib
 from . import flightlog
 from .djmd import attach_video_meta
 from .telemetry import Telemetry, parse_srt
@@ -104,7 +108,12 @@ class RenderThread(QThread):
 # --- widgets ---------------------------------------------------------------
 
 class PreviewLabel(QLabel):
-    """Keeps the preview image scaled to the available space."""
+    """Keeps the preview image scaled to the available space and reports mouse
+    positions in image pixels (for the style editor)."""
+    pressed = Signal(QPointF)
+    moved = Signal(QPointF)
+    released = Signal()
+    wheeled = Signal(int)  # +1 / -1
 
     def __init__(self):
         super().__init__("Drop a DJI video here\nor use “Choose video…”")
@@ -126,6 +135,32 @@ class PreviewLabel(QLabel):
         if self._pix is not None:
             self.setPixmap(self._pix.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
+    def _to_image(self, pos) -> QPointF | None:
+        if self._pix is None or self._pix.width() == 0:
+            return None
+        k = min(self.width() / self._pix.width(), self.height() / self._pix.height())
+        ox = (self.width() - self._pix.width() * k) / 2
+        oy = (self.height() - self._pix.height() * k) / 2
+        return QPointF((pos.x() - ox) / k, (pos.y() - oy) / k)
+
+    def mousePressEvent(self, e):
+        p = self._to_image(e.position())
+        if p is not None:
+            self.pressed.emit(p)
+
+    def mouseMoveEvent(self, e):
+        p = self._to_image(e.position())
+        if p is not None and e.buttons() & Qt.LeftButton:
+            self.moved.emit(p)
+
+    def mouseReleaseEvent(self, e):
+        self.released.emit()
+
+    def wheelEvent(self, e):
+        step = 1 if e.angleDelta().y() > 0 else -1 if e.angleDelta().y() < 0 else 0
+        if step:
+            self.wheeled.emit(step)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -143,11 +178,17 @@ class MainWindow(QMainWindow):
         self.render_thread: RenderThread | None = None
         self.pool = QThreadPool.globalInstance()
         self.accent = self.settings.value("accent", "#38BDF8")
+        self.editing = False
+        self.edit_base = None
+        self.edit_boxes: dict = {}
+        self.edit_guides: list = []
+        self.drag = None
 
         self.preview_timer = QTimer(self, singleShot=True, interval=120)
         self.preview_timer.timeout.connect(self.refresh_preview)
 
         self._build()
+        self._reload_styles(select=self.settings.value("style", "hud"))
         self._load_settings()
         self._update_enabled()
 
@@ -160,6 +201,10 @@ class MainWindow(QMainWindow):
         # Left: preview + timeline
         left = QVBoxLayout()
         self.preview = PreviewLabel()
+        self.preview.pressed.connect(self._preview_pressed)
+        self.preview.moved.connect(self._preview_moved)
+        self.preview.released.connect(self._preview_released)
+        self.preview.wheeled.connect(self._preview_wheel)
         left.addWidget(self.preview, 1)
         tl = QHBoxLayout()
         self.slider = QSlider(Qt.Horizontal)
@@ -210,16 +255,42 @@ class MainWindow(QMainWindow):
         side.addWidget(files)
 
         style = QGroupBox("2 · Style")
-        sl = QFormLayout(style)
+        style_outer = QVBoxLayout(style)
+        self.style_stack = QStackedWidget()
+        style_outer.addWidget(self.style_stack)
+        normal = QWidget()
+        sl = QFormLayout(normal)
+        sl.setContentsMargins(0, 0, 0, 0)
+        self.style_stack.addWidget(normal)
+        self.editor = StyleEditor()
+        self.editor.spec_changed.connect(self._render_edit_preview)
+        self.editor.selection_changed.connect(lambda _: self._render_edit_preview())
+        self.editor.save_requested.connect(self.save_edited_style)
+        self.editor.cancel_requested.connect(self.exit_edit)
+        self.style_stack.addWidget(self.editor)
+
         self.style_combo = QComboBox()
-        for sid, cls in STYLES.items():
-            self.style_combo.addItem(cls.name, sid)
         self.style_combo.currentIndexChanged.connect(self._style_changed)
         self.style_desc = QLabel(wordWrap=True)
         self.style_desc.setMinimumWidth(1)
         self.style_desc.setStyleSheet("color:#888;")
         sl.addRow("Style", self.style_combo)
+        srow = QHBoxLayout()
+        self.customize_btn = QPushButton("Customize…")
+        self.customize_btn.setToolTip("Move, resize and choose what each part of the overlay shows")
+        self.customize_btn.clicked.connect(self.enter_edit)
+        more = QPushButton("More ▾")
+        more_menu = QMenu(more)
+        more_menu.addAction("New empty style", lambda: self.enter_edit(blank=True))
+        more_menu.addAction("Import style…", self.import_style)
+        self.export_action = more_menu.addAction("Export style…", self.export_style)
+        self.delete_action = more_menu.addAction("Delete style", self.delete_style)
+        more.setMenu(more_menu)
+        srow.addWidget(self.customize_btn, 1)
+        srow.addWidget(more)
+        sl.addRow(srow)
         sl.addRow(self.style_desc)
+        self.styles = {}
         self.units_combo = QComboBox()
         self.units_combo.addItem("Metric (m, km/h)", "metric")
         self.units_combo.addItem("Imperial (ft, mph)", "imperial")
@@ -560,11 +631,179 @@ class MainWindow(QMainWindow):
         self.color_btn.setText(self.accent.upper())
         self.color_btn.setStyleSheet(f"background:{self.accent}; color:#000; font-weight:600;")
 
+    # -- styles --------------------------------------------------------------
+    def _reload_styles(self, select: str | None = None):
+        current = select or self.style_combo.currentData()
+        self.styles = style_lib.all_styles()
+        self.style_combo.blockSignals(True)
+        self.style_combo.clear()
+        user_started = False
+        for sid, st in self.styles.items():
+            if not st.builtin and not user_started:
+                self.style_combo.insertSeparator(self.style_combo.count())
+                user_started = True
+            self.style_combo.addItem(st.name if st.builtin else f"★ {st.name}", sid)
+        i = self.style_combo.findData(current)
+        self.style_combo.setCurrentIndex(max(0, i))
+        self.style_combo.blockSignals(False)
+        self._style_changed()
+
+    def current_style(self):
+        return self.styles.get(self.style_combo.currentData()) or self.styles["hud"]
+
     def _style_changed(self):
-        sid = self.style_combo.currentData()
-        self.style_desc.setText(STYLES[sid].description)
-        self.position_combo.setEnabled(sid == "minimal")
+        st = self.current_style()
+        self.style_desc.setText(st.description or ("Your own style." if not st.builtin else ""))
+        uses_position = any(el.get("position_option") for el in st.spec["elements"])
+        self.position_combo.setEnabled(uses_position)
+        self.customize_btn.setText("Edit…" if not st.builtin else "Customize…")
+        self.export_action.setEnabled(True)
+        self.delete_action.setEnabled(not st.builtin)
         self._schedule_preview()
+
+    def enter_edit(self, blank: bool = False):
+        if not self.tel or not self.info:
+            QMessageBox.information(self, "SkyStamp", "Load a video and its SRT first, so you can see the style "
+                                                      "on a real frame while you edit it.")
+            return
+        base = self.current_style()
+        if blank:
+            spec, self.edit_base = {"name": "My style", "elements": []}, None
+        elif base.builtin:
+            spec = dict(base.spec, name=f"{base.name} (my version)", description="")
+            self.edit_base = None
+        else:
+            spec, self.edit_base = base.spec, base
+        self.editing = True
+        self.editor.load(spec)
+        self.style_stack.setCurrentWidget(self.editor)
+        self.style_combo.setEnabled(False)
+        self._update_enabled()
+        self.status.setText("Editing style: drag elements on the preview.")
+        self._render_edit_preview()
+
+    def exit_edit(self):
+        self.editing = False
+        self.drag = None
+        self.edit_guides = []
+        self.style_stack.setCurrentIndex(0)
+        self.style_combo.setEnabled(True)
+        self.status.setText("")
+        self._update_enabled()
+        self._schedule_preview()
+
+    def save_edited_style(self):
+        spec = self.editor.current_spec()
+        if not spec["elements"]:
+            QMessageBox.warning(self, "SkyStamp", "Add at least one element before saving.")
+            return
+        try:
+            saved = style_lib.save_user_style(spec, previous=self.edit_base)
+        except OSError as e:
+            QMessageBox.critical(self, "Couldn't save style", str(e))
+            return
+        self.exit_edit()
+        self._reload_styles(select=saved.id)
+        self.status.setText(f"✓ Style “{saved.name}” saved.")
+
+    def import_style(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Import style", str(Path.home()),
+                                              f"SkyStamp style (*{style_lib.EXT});;All files (*)")
+        if not path:
+            return
+        try:
+            st = style_lib.import_style(path)
+        except (ValueError, OSError) as e:
+            QMessageBox.warning(self, "Can't import style", str(e))
+            return
+        self._reload_styles(select=st.id)
+        self.status.setText(f"✓ Imported “{st.name}”.")
+
+    def export_style(self):
+        st = self.current_style()
+        name = style_lib._slug(st.name) + style_lib.EXT
+        path, _ = QFileDialog.getSaveFileName(self, "Export style", str(Path.home() / name),
+                                              f"SkyStamp style (*{style_lib.EXT})")
+        if path:
+            if not path.endswith(style_lib.EXT):
+                path += style_lib.EXT
+            style_lib.export_style(st, path)
+            self.status.setText(f"✓ Exported to {path}")
+
+    def delete_style(self):
+        st = self.current_style()
+        if st.builtin:
+            return
+        if QMessageBox.question(self, "Delete style", f"Delete “{st.name}”?") != QMessageBox.Yes:
+            return
+        style_lib.delete_user_style(st)
+        self._reload_styles(select="hud")
+
+    # -- editing on the preview ------------------------------------------------
+    def _edit_frame(self):
+        t = self.slider.value() / 10
+        return t, self.frame_cache.get(t)
+
+    def _render_edit_preview(self):
+        if not self.editing or not self.tel or not self.video:
+            return
+        from PIL import Image, ImageDraw
+
+        t, frame = self._edit_frame()
+        if frame is None:
+            self.refresh_preview()  # fetches the frame, then comes back here
+            return
+        st = SpecStyle(frame.width, frame.height, self.tel, self.options(), self.editor.current_spec())
+        img = Image.alpha_composite(frame, st.render(t))
+        self.edit_boxes = st.boxes
+        self.edit_margin = st.margin
+        d = ImageDraw.Draw(img)
+        for kind, v in self.edit_guides:
+            if kind == "v":
+                d.line([(v, 0), (v, img.height)], fill=(255, 64, 160, 230), width=2)
+            else:
+                d.line([(0, v), (img.width, v)], fill=(255, 64, 160, 230), width=2)
+        for i, (x0, y0, x1, y1) in self.edit_boxes.items():
+            sel = i == self.editor.selected
+            pad = 4
+            d.rectangle((x0 - pad, y0 - pad, x1 + pad, y1 + pad),
+                        outline=(56, 189, 248, 255) if sel else (255, 255, 255, 90), width=3 if sel else 1)
+        self.preview.set_image(QPixmap.fromImage(ImageQt(img.convert("RGB"))))
+
+    def _preview_pressed(self, p):
+        if not self.editing:
+            return
+        hit = None
+        for i, (x0, y0, x1, y1) in self.edit_boxes.items():
+            if x0 - 6 <= p.x() <= x1 + 6 and y0 - 6 <= p.y() <= y1 + 6:
+                hit = i  # later elements are drawn on top
+        self.editor.select(hit)
+        self.drag = (hit, p, self.edit_boxes.get(hit)) if hit is not None else None
+
+    def _preview_moved(self, p):
+        if not self.editing or not self.drag:
+            return
+        i, start, box = self.drag
+        dx, dy = p.x() - start.x(), p.y() - start.y()
+        _, frame = self._edit_frame()
+        if frame is None or box is None:
+            return
+        new_box = (box[0] + dx, box[1] + dy, box[2] + dx, box[3] + dy)
+        el, self.edit_guides = move_element(self.editor.spec["elements"][i], new_box, frame.width, frame.height,
+                                            getattr(self, "edit_margin", 0))
+        self.editor.update_element(i, el)
+
+    def _preview_wheel(self, step: int):
+        """Mouse wheel over the preview resizes the selected element."""
+        if self.editing and self.editor.selected is not None:
+            s = self.editor.size
+            s.setValue(s.value() + step * max(1, s.value() // 12))
+
+    def _preview_released(self):
+        if self.drag:
+            self.drag = None
+            self.edit_guides = []
+            self._render_edit_preview()
 
     def _format_changed(self):
         fmt = self.format_combo.currentData()
@@ -579,7 +818,7 @@ class MainWindow(QMainWindow):
     def _update_enabled(self):
         ready = self.video is not None and self.tel is not None
         busy = self.render_thread is not None
-        self.render_btn.setEnabled(ready and not busy)
+        self.render_btn.setEnabled(ready and not busy and not self.editing)
 
     # -- preview -----------------------------------------------------------
     def _schedule_preview(self, *_):
@@ -594,7 +833,8 @@ class MainWindow(QMainWindow):
         self.preview_req += 1
         req, video, info, tel = self.preview_req, self.video, self.info, self.tel
         t = self.slider.value() / 10
-        opts, sid = self.options(), self.style_combo.currentData()
+        opts, style = self.options(), self.current_style()
+        editing = self.editing
         cache = self.frame_cache
 
         def work():
@@ -606,10 +846,10 @@ class MainWindow(QMainWindow):
                 if len(cache) > 30:
                     cache.clear()
                 cache[t] = frame
-            if tel is None:
+            if tel is None or editing:
                 return frame.convert("RGB")
-            overlay = STYLES[sid](info.width, info.height, tel, opts).render(t)
-            overlay = overlay.resize(frame.size, Image.LANCZOS)
+            # Layouts are resolution-independent, so draw straight at preview size
+            overlay = style(frame.width, frame.height, tel, opts).render(t)
             return Image.alpha_composite(frame, overlay).convert("RGB")
 
         job = _Job(req, work)
@@ -621,6 +861,9 @@ class MainWindow(QMainWindow):
             return  # a newer preview is on its way
         if isinstance(result, Exception):
             self.status.setText(f"Preview failed: {result}")
+            return
+        if self.editing:
+            self._render_edit_preview()
             return
         self.preview.set_image(QPixmap.fromImage(ImageQt(result)))
 
@@ -646,7 +889,7 @@ class MainWindow(QMainWindow):
         fmt = self.format_combo.currentData()
         self.render_thread = RenderThread(dict(
             video=self.video, tel=self.tel, output=out_path,
-            style_id=self.style_combo.currentData(), opts=self.options(), fmt=fmt,
+            style_id=self.current_style(), opts=self.options(), fmt=fmt,
             quality=self.quality_combo.currentData(), hardware=self.hw_check.isChecked(),
             overlay_fps=self.rate_combo.currentData(),
         ))

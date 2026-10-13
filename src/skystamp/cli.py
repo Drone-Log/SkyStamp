@@ -10,7 +10,7 @@ from .styles import FIELDS, POSITIONS, STYLES, OverlayOptions
 from . import flightlog
 from .djmd import attach_video_meta
 from .telemetry import parse_srt
-from .video import FORMATS, render
+from .video import FORMATS, render, resolve_style
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -18,7 +18,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("video", type=Path)
     p.add_argument("--srt", type=Path, help="SRT file (default: next to the video)")
     p.add_argument("-o", "--output", type=Path, help="output file (default: <video>_skystamp.mp4)")
-    p.add_argument("--style", choices=list(STYLES), default="hud")
+    p.add_argument("--style", default="hud",
+                   help=f"built-in ({', '.join(STYLES)}), one of your saved styles (user:<name>) or a .skystyle file")
     p.add_argument("--format", choices=list(FORMATS), default="h264")
     p.add_argument("--quality", choices=["high", "medium", "low"], default="high")
     p.add_argument("--no-hw", action="store_true", help="don't use the hardware encoder")
@@ -64,7 +65,11 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
         except flightlog.FlightLogError as e:
             print(f"Flight log skipped: {e}", file=sys.stderr)
-    render(a.video, tel, out, a.style, opts, a.format, a.quality, not a.no_hw,
+    try:
+        style = resolve_style(a.style)
+    except ValueError as e:
+        p.error(str(e))
+    render(a.video, tel, out, style, opts, a.format, a.quality, not a.no_hw,
            a.rate, a.offset, progress)
     print(f"\nSaved {out}", file=sys.stderr)
     return 0

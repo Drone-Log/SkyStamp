@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "name": "HUD",
+  "description": "Drone-OSD look: data in the corners, flight path mini-map.",
+  "corners": true,
+  "elements": [
+    {"type": "info", "x": 0, "y": 0, "anchor": "tl", "size": 26, "items": ["datetime", "gps"], "separator": "      "},
+    {"type": "info", "x": 1, "y": 0, "anchor": "tr", "size": 26, "items": ["camera"]},
+    {"type": "data", "x": 0, "y": 1, "anchor": "bl", "size": 48, "direction": "row", "labels": "above",
+     "fields": ["altitude", "speed", "vspeed", "home", "distance", "heading", "battery"]},
+    {"type": "map", "x": 1, "y": 1, "anchor": "br", "size": 280, "caption": "coords"}
+  ]
+}
