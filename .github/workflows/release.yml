@@ -62,6 +62,9 @@ jobs:
           security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PW" "$KC" >/dev/null
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          # Pasted secrets often carry stray spaces/newlines
+          ASC_KEY_ID="$(printf %s "$ASC_KEY_ID" | tr -d '[:space:]')"
+          ASC_ISSUER_ID="$(printf %s "$ASC_ISSUER_ID" | tr -d '[:space:]')"
           echo "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
           ASC_KEY_PATH="$RUNNER_TEMP/AuthKey.p8" ASC_KEY_ID="$ASC_KEY_ID" ASC_ISSUER_ID="$ASC_ISSUER_ID" \
             packaging/macos_sign.sh "$MACOS_SIGN_IDENTITY" dist/SkyStamp.app ${{ matrix.artifact }}
