@@ -30,5 +30,5 @@ icon = root / "packaging" / ("icon.icns" if sys.platform == "darwin" else "icon.
 if icon.exists():
     args += ["--icon", str(icon)]
 if sys.platform == "darwin":
-    args += ["--osx-bundle-identifier", "io.github.vld666.skystamp"]
+    args += ["--osx-bundle-identifier", "app.getskystamp"]
 PyInstaller.__main__.run(args)

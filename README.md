@@ -3,7 +3,7 @@
 Burn your DJI drone's flight data (altitude, speed, distance, GPS, camera settings, flight path) into your videos.
 Pick the video, pick the `.SRT` file the drone saved next to it, choose a style, then click **Create video**.
 
-Works on **Windows, macOS and Linux**. ffmpeg is bundled, so there's nothing else to install.
+**Website: [getskystamp.app](https://getskystamp.app)** · Works on **Windows, macOS and Linux**. ffmpeg is bundled, so there's nothing else to install.
 
 ## Features
 
@@ -36,7 +36,7 @@ Download the file for your system from [Releases](../../releases):
 Or, with Python 3.10+:
 
 ```bash
-pip install git+https://github.com/vld666/SkyStamp
+pip install git+https://github.com/Drone-Log/SkyStamp
 skystamp            # desktop app
 skystamp-cli VIDEO.MP4 --style cinematic -o out.mp4
 ```

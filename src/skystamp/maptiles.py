@@ -41,7 +41,7 @@ PROVIDERS: dict[str, Provider] = {
                           "Esri, Maxar, Earthstar", 19),
 }
 
-_USER_AGENT = f"SkyStamp/{__version__} (+https://github.com/vld666/SkyStamp)"
+_USER_AGENT = f"SkyStamp/{__version__} (+https://github.com/Drone-Log/SkyStamp)"
 _lock = threading.Lock()
 
 

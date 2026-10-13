@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyStamp: flight data on your drone videos</title>
+<meta name="description" content="Free, open-source app that burns your DJI drone's flight data (altitude, speed, distance, GPS, flight path map) into your videos. Windows, macOS and Linux.">
+<meta property="og:title" content="SkyStamp: flight data on your drone videos">
+<meta property="og:description" content="Video + SRT → finished video with altitude, speed and a flight-path map. Free and open source.">
+<meta property="og:image" content="https://getskystamp.app/img/style-hud.jpg">
+<meta property="og:url" content="https://getskystamp.app/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-2: #111118;
+    --card: #14141e;
+    --card-2: #1a1a25;
+    --border: rgba(255,255,255,.06);
+    --border-hover: rgba(255,255,255,.12);
+    --text: #e6edf3;
+    --text-2: #8b8d97;
+    --text-3: #5a5c66;
+    --accent: #38bdf8;
+    --accent-2: #2f81f7;
+    --glow: rgba(56,189,248,.16);
+    --radius: 14px;
+    --max: 1160px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  img { max-width: 100%; height: auto; display: block; }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+  /* Nav */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10,10,15,.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); }
+  .brand:hover { text-decoration: none; }
+  .brand img { width: 28px; height: 28px; }
+  .links { display: flex; gap: 28px; align-items: center; }
+  .links a { color: var(--text-2); font-size: 14px; font-weight: 500; }
+  .links a:hover { color: var(--text); text-decoration: none; }
+  @media (max-width: 760px) { .links a:not(.btn) { display: none; } }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 10px;
+    font-weight: 600; font-size: 15px; border: 1px solid transparent; transition: .15s;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #031018; box-shadow: 0 8px 30px var(--glow); }
+  .btn-primary:hover { background: #7dd3fc; }
+  .btn-ghost { background: var(--card); color: var(--text); border-color: var(--border-hover); }
+  .btn-ghost:hover { border-color: rgba(255,255,255,.25); }
+  .btn-sm { padding: 8px 14px; font-size: 14px; }
+  .links .btn-sm { color: var(--text); }
+
+  /* Hero */
+  .hero { position: relative; padding: 96px 0 56px; text-align: center; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: -200px 0 auto; height: 600px; z-index: -1;
+    background: radial-gradient(ellipse 60% 50% at 50% 30%, rgba(56,189,248,.18), transparent 70%);
+  }
+  .pill {
+    display: inline-flex; gap: 8px; align-items: center; padding: 6px 14px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--border-hover); color: var(--text-2); font-size: 13px; font-weight: 500;
+  }
+  .pill b { color: var(--accent); font-weight: 600; }
+  h1 {
+    font-size: clamp(38px, 6vw, 68px); line-height: 1.05; letter-spacing: -.035em; font-weight: 800;
+    margin: 22px auto 18px; max-width: 900px;
+  }
+  h1 span {
+    background: linear-gradient(90deg, #7dd3fc, var(--accent) 40%, var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .lead { color: var(--text-2); font-size: clamp(17px, 2vw, 20px); max-width: 640px; margin: 0 auto 32px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .trust { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-top: 22px; color: var(--text-3); font-size: 14px; }
+  .trust span::before { content: "✓ "; color: var(--accent); }
+  .shot {
+    margin: 56px auto 0; max-width: 1080px; border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--border-hover); background: var(--card);
+    box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.02), 0 0 80px var(--glow);
+  }
+  .shot .bar { display: flex; gap: 7px; padding: 12px 14px; background: #1c1c26; border-bottom: 1px solid var(--border); }
+  .shot .bar i { width: 11px; height: 11px; border-radius: 50%; background: #3a3a46; }
+
+  /* Sections */
+  section { padding: 96px 0; }
+  .eyebrow { color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.1; letter-spacing: -.025em; font-weight: 800; margin: 10px 0 14px; }
+  .sub { color: var(--text-2); font-size: 18px; max-width: 620px; margin: 0; }
+  .head { margin-bottom: 44px; }
+  .head.center { text-align: center; }
+  .head.center .sub { margin: 0 auto; }
+
+  /* Styles gallery */
+  .tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab { padding: 9px 18px; border-radius: 9px; border: 0; background: none; color: var(--text-2); font: 600 14px Inter, sans-serif; cursor: pointer; }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { background: var(--card-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-hover); }
+  .gallery { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border-hover); background: var(--card); }
+  .gallery img { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+  .caption { padding: 16px 20px; color: var(--text-2); font-size: 15px; border-top: 1px solid var(--border); }
+  .caption b { color: var(--text); }
+
+  /* Feature cards */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px;
+    transition: border-color .15s, transform .15s;
+  }
+  .card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+  .icon {
+    width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 16px;
+    background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.22); color: var(--accent);
+  }
+  .icon svg { width: 22px; height: 22px; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--text-2); font-size: 15px; }
+
+  /* Steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: step; }
+  @media (max-width: 800px) { .steps { grid-template-columns: 1fr; } }
+  .step { position: relative; background: linear-gradient(180deg, var(--card), var(--bg-2)); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; }
+  .step::before {
+    counter-increment: step; content: counter(step);
+    display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; margin-bottom: 18px;
+    background: var(--accent); color: #031018; font-weight: 800;
+  }
+  .step h3 { margin: 0 0 6px; font-size: 18px; }
+  .step p { margin: 0; color: var(--text-2); font-size: 15px; }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--card-2); border: 1px solid var(--border); padding: 2px 6px; border-radius: 6px; color: var(--text); }
+
+  /* Download */
+  .dl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .dl { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .dl { grid-template-columns: 1fr; } }
+  .os { display: flex; flex-direction: column; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; color: var(--text); }
+  .os:hover { text-decoration: none; border-color: var(--accent); }
+  .os.mine { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 10px 40px var(--glow); }
+  .os .name { font-weight: 700; font-size: 17px; }
+  .os .meta { color: var(--text-3); font-size: 13px; }
+  .os .go { margin-top: auto; color: var(--accent); font-weight: 600; font-size: 14px; }
+  .os .tag { align-self: flex-start; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #031018; background: var(--accent); padding: 3px 8px; border-radius: 6px; visibility: hidden; }
+  .os.mine .tag { visibility: visible; }
+  .notes { margin-top: 22px; display: grid; gap: 8px; color: var(--text-2); font-size: 14px; }
+
+  /* Final CTA + footer */
+  .final { text-align: center; padding: 72px 24px; background: radial-gradient(ellipse 50% 80% at 50% 100%, rgba(56,189,248,.14), transparent 70%), var(--bg-2); border: 1px solid var(--border); border-radius: 20px; }
+  footer { border-top: 1px solid var(--border); padding: 40px 0 56px; color: var(--text-3); font-size: 14px; margin-top: 96px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  footer a { color: var(--text-2); }
+  footer .cols { display: flex; gap: 28px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="img/icon.png" alt="">SkyStamp</a>
+    <div class="links">
+      <a href="#styles">Styles</a>
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="https://github.com/Drone-Log/SkyStamp">GitHub</a>
+      <a class="btn btn-ghost btn-sm" href="#download">Download</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="pill"><b>v1.0.1</b> Free &amp; open source</span>
+    <h1>Your flight data, <span>stamped on your drone video</span></h1>
+    <p class="lead">Drop in the video and the SRT file your DJI drone saved next to it, pick a style, and get a finished
+      video with altitude, speed, distance and a live flight-path map.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#download">Download free</a>
+      <a class="btn btn-ghost" href="#styles">See the styles</a>
+    </div>
+    <div class="trust"><span>No account</span><span>Works offline</span><span>Windows · macOS · Linux</span><span>MIT licensed</span></div>
+    <div class="shot">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <img src="img/app.jpg" width="1600" height="1066" alt="SkyStamp app: video preview with flight data overlay and style settings">
+    </div>
+  </div>
+</header>
+
+<section id="styles">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Styles</div>
+      <h2>Pick how your data looks</h2>
+      <p class="sub">Four built-in looks. Choose which numbers to show, units, text size and accent color, with a live preview on any frame.</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-style="hud">HUD</button>
+      <button class="tab" role="tab" aria-selected="false" data-style="classic">Classic</button>
+      <button class="tab" role="tab" aria-selected="false" data-style="cinematic">Cinematic</button>
+      <button class="tab" role="tab" aria-selected="false" data-style="minimal">Minimal</button>
+    </div>
+    <div class="gallery">
+      <img id="style-img" src="img/style-hud.jpg" width="1600" height="900" alt="HUD style">
+      <div class="caption" id="style-caption"></div>
+    </div>
+  </div>
+</section>
+
+<section id="features" style="padding-top:0">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Features</div>
+      <h2>From raw flight to finished video</h2>
+      <p class="sub">Everything happens on your computer. Your footage never leaves it.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg></div>
+        <h3>Reads DJI SRT files</h3>
+        <p>Finds the SRT next to your video automatically. Supports both the new format (Neo, Mini 3/4, Air 3, Avata) and the classic one (Mini 2, Air 2).</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.4-2.7A1 1 0 0 1 3 16.4V4.6a1 1 0 0 1 1.4-.9L9 6m0 14l6-3m-6 3V6m6 11l4.6 2.3a1 1 0 0 0 1.4-.9V7.6a1 1 0 0 0-.6-.9L15 4m0 13V4m0 0L9 6"/></svg></div>
+        <h3>Flight-path mini-map</h3>
+        <p>Your route drawn live over a street map or satellite imagery, with the takeoff point and the drone's current position.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/></svg></div>
+        <h3>GPS signal &amp; real speed</h3>
+        <p>Shows GPS lock status and uses the speed measured by the drone itself, read from the metadata DJI embeds in the MP4.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <h3>Fast 4K rendering</h3>
+        <p>Uses your GPU encoder (Apple, NVIDIA, Intel, AMD) when available, with automatic software fallback. Keeps resolution, frame rate and audio.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+        <h3>Overlay for editors</h3>
+        <p>Export a transparent ProRes 4444 overlay to place on top of your footage in DaVinci Resolve, Premiere or Final Cut.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg></div>
+        <h3>Open source</h3>
+        <p>MIT licensed and on GitHub. There's a command-line version for batch jobs, and adding a style is one small Python file.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how" style="padding-top:0">
+  <div class="wrap">
+    <div class="head center">
+      <div class="eyebrow">How it works</div>
+      <h2>Three steps. That's it.</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Drop your video</h3><p>Drag the <code>.MP4</code> from your drone onto the window. The matching <code>.SRT</code> is picked up automatically.</p></div>
+      <div class="step"><h3>Pick a style</h3><p>Choose a look and the data you want, then scrub the timeline to preview any frame.</p></div>
+      <div class="step"><h3>Create video</h3><p>Choose where to save it and click once. Your finished video keeps the original quality.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="download" style="padding-top:0">
+  <div class="wrap">
+    <div class="head center">
+      <div class="eyebrow">Download</div>
+      <h2>Get SkyStamp</h2>
+      <p class="sub">Free, no account, nothing else to install. ffmpeg is included.</p>
+    </div>
+    <div class="dl">
+      <a class="os" data-os="win" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-windows-x64.zip">
+        <span class="tag">Your system</span><span class="name">Windows</span><span class="meta">64-bit · .zip</span><span class="go">Download →</span></a>
+      <a class="os" data-os="mac-arm" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-macos-arm64.dmg">
+        <span class="tag">Your system</span><span class="name">macOS</span><span class="meta">Apple Silicon (M1–M4) · .dmg</span><span class="go">Download →</span></a>
+      <a class="os" data-os="mac-intel" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-macos-intel.dmg">
+        <span class="tag">Your system</span><span class="name">macOS Intel</span><span class="meta">Older Macs · .dmg</span><span class="go">Download →</span></a>
+      <a class="os" data-os="linux" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-linux-x86_64.AppImage">
+        <span class="tag">Your system</span><span class="name">Linux</span><span class="meta">x86_64 · AppImage</span><span class="go">Download →</span></a>
+    </div>
+    <div class="notes">
+      <div><b>Windows:</b> unzip and run <code>SkyStamp.exe</code>. If SmartScreen appears, click <i>More info → Run anyway</i>.</div>
+      <div><b>macOS:</b> drag to Applications. The first time, right-click the app and choose <i>Open</i>.</div>
+      <div><b>Linux:</b> <code>chmod +x SkyStamp-*.AppImage</code> and run it.</div>
+      <div>All versions and source code: <a href="https://github.com/Drone-Log/SkyStamp/releases">GitHub Releases</a>.</div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="final">
+    <h2>Make your flights tell the whole story</h2>
+    <p class="sub" style="margin:0 auto 28px">Altitude, speed and where you flew, right on the footage.</p>
+    <a class="btn btn-primary" href="#download">Download free</a>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="#"><img src="img/icon.png" alt="">SkyStamp</a>
+      <p style="margin:12px 0 0">© 2026 Vlad Roșca · MIT License<br>Not affiliated with or endorsed by DJI.</p>
+    </div>
+    <div class="cols">
+      <a href="https://github.com/Drone-Log/SkyStamp">Source code</a>
+      <a href="https://github.com/Drone-Log/SkyStamp/releases">Releases</a>
+      <a href="https://github.com/Drone-Log/SkyStamp/issues">Report a problem</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Style switcher
+  const captions = {
+    hud: "<b>HUD</b> · Drone-OSD look: data in the corners and a flight-path mini-map.",
+    classic: "<b>Classic</b> · Flight data top-left, camera settings top-right, speed box at the bottom.",
+    cinematic: "<b>Cinematic</b> · Lower-third panel with large numbers, like a broadcast graphic.",
+    minimal: "<b>Minimal</b> · One clean line of data, in any corner you like.",
+  };
+  const img = document.getElementById("style-img"), cap = document.getElementById("style-caption");
+  document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t === tab));
+    img.src = `img/style-${tab.dataset.style}.jpg`;
+    img.alt = `${tab.textContent} style`;
+    cap.innerHTML = captions[tab.dataset.style];
+  }));
+  cap.innerHTML = captions.hud;
+  ["classic", "cinematic", "minimal"].forEach(s => { new Image().src = `img/style-${s}.jpg`; });
+
+  // Highlight the visitor's platform
+  (async () => {
+    const ua = navigator.userAgent;
+    let os = /Windows/.test(ua) ? "win" : /Mac/.test(ua) ? "mac-arm" : /Linux/.test(ua) && !/Android/.test(ua) ? "linux" : null;
+    if (os === "mac-arm" && navigator.userAgentData?.getHighEntropyValues) {
+      try {
+        const { architecture } = await navigator.userAgentData.getHighEntropyValues(["architecture"]);
+        if (architecture === "x86") os = "mac-intel";
+      } catch {}
+    }
+    if (os) document.querySelector(`.os[data-os="${os}"]`)?.classList.add("mine");
+  })();
+</script>
+</body>
+</html>
