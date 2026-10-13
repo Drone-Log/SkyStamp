@@ -200,6 +200,9 @@
   .os .go { margin-top: auto; color: var(--accent); font-weight: 600; font-size: 14px; }
   .os .tag { align-self: flex-start; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #031018; background: var(--accent); padding: 3px 8px; border-radius: 6px; visibility: hidden; }
   .os.mine .tag { visibility: visible; }
+  .hint { margin: 18px 0 0; padding: 12px 16px; border-radius: 10px; background: rgba(56,189,248,.08);
+          border: 1px solid rgba(56,189,248,.25); color: var(--text); font-size: 14px; }
+  .hint[hidden] { display: none; }
   .notes { margin-top: 22px; display: grid; gap: 8px; color: var(--text-2); font-size: 14px; }
 
   /* Drone Log cross-promo */
@@ -375,6 +378,8 @@
       <a class="os" data-os="linux" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-linux-x86_64.AppImage">
         <span class="tag">Your system</span><span class="name">Linux</span><span class="meta">x86_64 · AppImage</span><span class="go">Download →</span></a>
     </div>
+    <p id="mobile-note" class="hint" hidden>📱 SkyStamp runs on computers. Open this page on your Mac or PC to download it.</p>
+    <p id="mac-note" class="hint" hidden>Not sure which Mac you have? Apple menu → <i>About This Mac</i>: <b>Chip</b> means Apple Silicon, <b>Processor</b> means Intel.</p>
     <div class="notes">
       <div><b>Windows:</b> unzip and run <code>SkyStamp.exe</code>. If SmartScreen appears, click <i>More info → Run anyway</i>.</div>
       <div><b>macOS:</b> open the .dmg and drag SkyStamp onto Applications. It's signed and notarized by Apple; the first time you open it, macOS asks you to confirm. Click <i>Open</i>.</div>
@@ -531,18 +536,40 @@
   cap.innerHTML = captions.hud;
   ["classic", "cinematic", "minimal"].forEach(s => { new Image().src = `img/style-${s}.webp`; });
 
-  // Highlight the visitor's platform
+  // Highlight the visitor's platform (all buttons stay usable either way)
   (async () => {
     const ua = navigator.userAgent;
-    let os = /Windows/.test(ua) ? "win" : /Mac/.test(ua) ? "mac-arm" : /Linux/.test(ua) && !/Android/.test(ua) ? "linux" : null;
-    if (os === "mac-arm" && navigator.userAgentData?.getHighEntropyValues) {
-      try {
-        const { architecture } = await navigator.userAgentData.getHighEntropyValues(["architecture"]);
-        if (architecture === "x86") os = "mac-intel";
-      } catch {}
+    const mobile = /iPhone|iPad|iPod|Android/i.test(ua) ||
+                   (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);  // iPadOS asks for desktop sites
+    if (mobile) {
+      document.getElementById("mobile-note").hidden = false;
+      return;
+    }
+    let os = /Windows/.test(ua) ? "win" : /Mac/.test(ua) ? "mac" : /Linux|X11/.test(ua) ? "linux" : null;
+    if (os === "mac") {
+      os = await macChip();
+      document.getElementById("mac-note").hidden = os !== "mac-unsure";
+      if (os === "mac-unsure") os = "mac-arm";  // most Macs sold since 2020
     }
     if (os) document.querySelector(`.os[data-os="${os}"]`)?.classList.add("mine");
   })();
+
+  // Apple Silicon or Intel? Chromium browsers say so; elsewhere ask the GPU name.
+  async function macChip() {
+    try {
+      const v = await navigator.userAgentData?.getHighEntropyValues?.(["architecture"]);
+      if (v?.architecture === "arm") return "mac-arm";
+      if (v?.architecture === "x86") return "mac-intel";
+    } catch {}
+    try {
+      const gl = document.createElement("canvas").getContext("webgl");
+      const ext = gl && gl.getExtension("WEBGL_debug_renderer_info");
+      const gpu = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl?.getParameter(gl.RENDERER) || "");
+      if (/Apple M\d/i.test(gpu)) return "mac-arm";  // Safari says just "Apple GPU" on every Mac: unsure
+      if (/Intel|AMD|Radeon|NVIDIA/i.test(gpu)) return "mac-intel";
+    } catch {}
+    return "mac-unsure";
+  }
 </script>
 </body>
 </html>
