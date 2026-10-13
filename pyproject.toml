@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skystamp"
-version = "1.2.0"
+version = "1.2.1"
 description = "Burn DJI drone telemetry (SRT) into your videos: simple desktop app, Windows/macOS/Linux."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,7 +18,7 @@ Source = "https://github.com/Drone-Log/SkyStamp"
 Issues = "https://github.com/Drone-Log/SkyStamp/issues"
 
 [project.optional-dependencies]
-dev = ["pytest", "pyinstaller"]
+dev = ["pytest", "pyinstaller", "dmgbuild; sys_platform == 'darwin'"]
 
 [project.scripts]
 skystamp-cli = "skystamp.cli:main"

@@ -35,7 +35,7 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 
 echo "Building dmg…"
 rm -f "$DMG"
-hdiutil create -volname SkyStamp -srcfolder "$APP" -ov -format UDZO "$DMG"
+python "$HERE/make_dmg.py" "$APP" "$DMG"
 codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 
 if [[ -n "${NOTARY_PROFILE:-}" ]]; then
