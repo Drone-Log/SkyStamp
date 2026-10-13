@@ -46,6 +46,17 @@ else
   echo "No notarization credentials: dmg is signed but NOT notarized."
   exit 0
 fi
-xcrun stapler staple "$DMG"
+# Apple's ticket service sometimes drops the connection right after notarization: retry
+for attempt in 1 2 3 4 5 6; do
+  if xcrun stapler staple "$DMG"; then
+    break
+  fi
+  if [[ $attempt == 6 ]]; then
+    echo "Stapling failed after $attempt attempts." >&2
+    exit 1
+  fi
+  echo "Stapling failed (attempt $attempt), retrying in $((attempt * 15))s…"
+  sleep $((attempt * 15))
+done
 spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
 echo "Done: $DMG is signed, notarized and stapled."
