@@ -30,7 +30,7 @@ Download the file for your system from [Releases](../../releases):
 | System | File | First launch |
 |---|---|---|
 | Windows | `SkyStamp-windows-x64.zip` | Unzip, run `SkyStamp.exe`. If SmartScreen shows up: *More info → Run anyway*. |
-| macOS (Apple Silicon / Intel) | `SkyStamp-macos-*.dmg` | Drag to Applications. First time: right-click → *Open* (the app isn't notarized yet). |
+| macOS (Apple Silicon / Intel) | `SkyStamp-macos-*.dmg` | Drag to Applications. Signed and notarized by Apple. |
 | Linux | `SkyStamp-linux-x86_64.AppImage` | `chmod +x SkyStamp-*.AppImage` and run it. |
 
 Or, with Python 3.10+:

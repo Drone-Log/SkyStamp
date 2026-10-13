@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skystamp"
-version = "1.0.1"
+version = "1.0.2"
 description = "Burn DJI drone telemetry (SRT) into your videos: simple desktop app, Windows/macOS/Linux."
 readme = "README.md"
 requires-python = ">=3.10"
