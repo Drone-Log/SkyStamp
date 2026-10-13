@@ -1,0 +1,10 @@
+{
+  "format": 1,
+  "name": "Cinematic",
+  "description": "Lower-third panel with large numbers, like a broadcast graphic.",
+  "elements": [
+    {"type": "data", "x": 0, "y": 1, "anchor": "bl", "size": 56, "direction": "row", "labels": "below",
+     "panel": "bar", "map": true, "header": ["gps", "datetime", "coords", "camera"],
+     "fields": ["altitude", "speed", "vspeed", "home", "distance", "heading", "battery"]}
+  ]
+}

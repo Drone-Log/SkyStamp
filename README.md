@@ -9,7 +9,7 @@ Pick the video, pick the `.SRT` file the drone saved next to it, choose a style,
 
 - **Video + SRT → final video.** The SRT is found automatically when it sits next to the video.
 - **Live preview** of the frame under the timeline slider, with the overlay drawn on top.
-- **Styles:** HUD (drone OSD look + mini-map), Classic (data in the corners + speed box), Cinematic (lower-third panel), Minimal (one line of data).
+- **Styles:** HUD (drone OSD look + mini-map), Classic (data in the corners + speed box), Cinematic (lower-third panel), Minimal (one line of data), **or your own**: drag and drop elements in the built-in style editor.
 - **Mini-map over a real map:** street map (OpenStreetMap) or satellite (Esri), downloaded once per video and
   cached. Without internet, only the path is drawn.
 - **Customise:** which data to show, metric/imperial units, text size, accent color, position.
@@ -74,19 +74,21 @@ skystamp-cli in.MP4 --fields altitude,speed,map --units imperial --scale 1.3 --a
 
 Run `skystamp-cli -h` for every option.
 
-## Adding a style
+## Custom styles
 
-Each style is one small file in `src/skystamp/styles/`. To add one:
+Pick a style and click **Customize…** (or *More → New empty style*):
 
-1. Copy `minimal.py` to `mystyle.py`, change `id`, `name` and `description`.
-2. Draw in `draw_dynamic(d, img, sample, t)` with Pillow. Helpers from `Style`:
-   - `self.metrics(s)`: the enabled numbers (value + unit + label), already converted to the chosen units
-   - `self.datetime_text(s)`, `self.camera_text(s)`, `self.gps_text(s)`
-   - `self.font(size)` and `self.px(n)`: sizes in "1080p pixels", scaled to any resolution and the text-size setting
-   - `self.text(...)`: text with an outline that stays readable on bright skies
-   - `self.draw_map_static/dynamic(...)`: the flight path mini-map
-3. Anything that never changes (panels, backgrounds) goes in `draw_static`, which is drawn only once.
-4. Register it in `styles/__init__.py`. It then shows up in the app and the CLI.
+- **click** an element on the preview to select it, **drag** to move it (it snaps to the edges and the centre),
+  **scroll** to resize it;
+- in the side panel choose what it shows, its layout, labels, background and colour, or **Add…** /
+  **Remove** elements: flight data, text & GPS signal, a big number, the mini-map;
+- **Save style**: it appears in the list (marked ★) and works in the command line as `--style user:<name>`.
+
+Styles are small `.skystyle` files (JSON) you can share with *More → Export / Import*. They live in
+`~/Library/Application Support/SkyStamp/styles` (macOS), `%APPDATA%\SkyStamp\styles` (Windows) or
+`~/.local/share/SkyStamp/styles` (Linux). The format is documented in
+[`src/skystamp/styles/engine.py`](src/skystamp/styles/engine.py); the built-in styles are in
+[`src/skystamp/assets/styles/`](src/skystamp/assets/styles).
 
 ## Development
 

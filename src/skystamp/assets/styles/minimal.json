@@ -1,0 +1,10 @@
+{
+  "format": 1,
+  "name": "Minimal",
+  "description": "One clean line of data. Choose where it sits on the frame.",
+  "elements": [
+    {"type": "data", "x": 0, "y": 1, "anchor": "bl", "size": 34, "direction": "row", "labels": "short",
+     "separator": true, "position_option": true, "footer": ["gps", "datetime", "camera", "coords"],
+     "fields": ["altitude", "speed", "vspeed", "home", "distance", "heading", "battery"]}
+  ]
+}

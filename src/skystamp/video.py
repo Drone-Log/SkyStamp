@@ -16,7 +16,7 @@ from typing import Callable
 
 from PIL import Image
 
-from .styles import STYLES, OverlayOptions
+from .styles import OverlayOptions, StyleDef, get_style
 from .telemetry import Telemetry
 
 # Hide console windows spawned by subprocess on Windows
@@ -123,10 +123,19 @@ def extract_frame(path: str | Path, t: float, max_width: int = 1600) -> Image.Im
     return Image.open(io.BytesIO(res.stdout)).convert("RGB")
 
 
+def resolve_style(style) -> StyleDef:
+    """A style id, a .skystyle path, a StyleDef or a raw spec dict (e.g. one being edited)."""
+    if isinstance(style, StyleDef):
+        return style
+    if isinstance(style, dict):
+        return StyleDef("custom", style, builtin=False)
+    return get_style(str(style))
+
+
 def preview(video: str | Path, info: VideoInfo, tel: Telemetry, style_id: str,
             opts: OverlayOptions, t: float, max_width: int = 1600) -> Image.Image:
     frame = extract_frame(video, t, max_width).convert("RGBA")
-    overlay = STYLES[style_id](info.width, info.height, tel, opts).render(t)
+    overlay = resolve_style(style_id)(info.width, info.height, tel, opts).render(t)
     overlay = overlay.resize(frame.size, Image.LANCZOS)
     return Image.alpha_composite(frame, overlay).convert("RGB")
 
@@ -202,7 +211,7 @@ def _render_once(
     """
     opts = opts or OverlayOptions()
     info = probe(video)
-    style = STYLES[style_id](info.width, info.height, tel, opts)
+    style = resolve_style(style_id)(info.width, info.height, tel, opts)
     rate = min(overlay_fps, info.fps) if fmt != "overlay" else info.fps
     n_frames = max(1, int(info.duration * rate + 0.999))
     progress = progress or (lambda p, msg: None)

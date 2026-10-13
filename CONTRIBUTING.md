@@ -46,14 +46,17 @@ pull requests with passing checks.
 |---|---|
 | `src/skystamp/telemetry.py` | SRT parsing, speed/distance/heading calculations |
 | `src/skystamp/djmd.py` | DJI metadata embedded in the MP4 (GPS status, drone-measured speed) |
-| `src/skystamp/styles/` | Overlay styles, one file each |
+| `src/skystamp/styles/` | Style engine (`engine.py`, the `.skystyle` format) and style library |
+| `src/skystamp/assets/styles/` | Built-in styles, as `.skystyle` JSON |
+| `src/skystamp/editor.py` | Visual style editor |
 | `src/skystamp/flightlog.py` | DJI Fly flight logs: satellites, battery (via dji-log-parser) |
 | `src/skystamp/maptiles.py` | Street / satellite map tiles for the mini-map |
 | `src/skystamp/video.py` | ffmpeg: probing, preview frames, rendering |
 | `src/skystamp/gui.py` / `cli.py` | Desktop app / command line |
 | `docs/` | Website ([getskystamp.app](https://getskystamp.app)) |
 
-**Adding a style:** see "Adding a style" in the [README](README.md#adding-a-style).
+**Adding a built-in style:** design it in the app's editor, export it, and add the file to
+`src/skystamp/assets/styles/` and `BUILTIN_ORDER` in `styles/library.py`.
 
 **Supporting another drone:** the most useful thing is a short sample `.SRT` (and, if possible, a short clip)
 from that model attached to an issue.
