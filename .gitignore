@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+*.spec
+*.mp4
+*.MP4
+*.mov
+*.SRT
+*.srt
+!tests/data/*.srt
+.DS_Store
+.pytest_cache/

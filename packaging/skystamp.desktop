@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=SkyStamp
+Comment=Burn DJI drone telemetry into your videos
+Exec=SkyStamp %f
+Icon=skystamp
+Categories=AudioVideo;Video;
