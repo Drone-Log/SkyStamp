@@ -100,6 +100,17 @@ python packaging/build.py          # standalone app in dist/
 
 Releases are built by GitHub Actions (`.github/workflows/release.yml`) when a `v*` tag is pushed.
 
+## Privacy
+
+SkyStamp has no servers, accounts, analytics or crash reporting. Videos, SRT files and flight logs are processed
+on your computer and never uploaded. The only network connections, both optional, are:
+
+- **map tiles** for the mini-map, from OpenStreetMap or Esri (*Map background → None* turns this off);
+- **DJI's key service**, once per DJI Fly flight log you add, to get the keys that decrypt it (uses your DJI API key).
+
+SkyStamp is provided as is, without warranty (MIT License). You're responsible for following the drone and
+privacy rules where you fly and publish.
+
 ## How it works
 
 `telemetry.py` parses the SRT (one entry per video frame) and computes speed, heading and distances from GPS.
