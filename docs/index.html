@@ -149,6 +149,10 @@
   .tab { padding: 9px 18px; border-radius: 9px; border: 0; background: none; color: var(--text-2); font: 600 14px Inter, sans-serif; cursor: pointer; }
   .tab:hover { color: var(--text); }
   .tab[aria-selected="true"] { background: var(--card-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-hover); }
+  @media (max-width: 560px) {
+    .tabs { display: flex; width: 100%; flex-wrap: nowrap; }
+    .tab { flex: 1; padding: 8px 4px; font-size: 13px; white-space: nowrap; }
+  }
   .gallery { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border-hover); background: var(--card); }
   .gallery img { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
   .caption { padding: 16px 20px; color: var(--text-2); font-size: 15px; border-top: 1px solid var(--border); }
