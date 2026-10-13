@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from .styles import FIELDS, POSITIONS, STYLES, OverlayOptions
+from . import flightlog
 from .djmd import attach_video_meta
 from .telemetry import parse_srt
 from .video import FORMATS, render
@@ -30,6 +31,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="mini-map background (downloaded once, cached)")
     p.add_argument("--rate", type=float, default=10, help="data refreshes per second")
     p.add_argument("--offset", type=float, default=0.0, help="shift telemetry by N seconds")
+    p.add_argument("--flight-log", type=Path,
+                   help="DJI Fly FlightRecord_*.txt: adds satellite count and battery (default: found by time)")
+    p.add_argument("--dji-key", help="DJI API key for encrypted logs (default: $DJI_API_KEY or ~/.config/dji/api_key)")
     a = p.parse_args(argv)
 
     srt = a.srt or next((a.video.with_suffix(e) for e in (".SRT", ".srt") if a.video.with_suffix(e).exists()), None)
@@ -47,6 +51,19 @@ def main(argv: list[str] | None = None) -> int:
 
     tel = parse_srt(srt)
     attach_video_meta(tel, a.video)
+    log_path = a.flight_log
+    if log_path is None:
+        start = next((s.timestamp for s in tel.samples if s.timestamp), None)
+        if start:
+            log_path = flightlog.find_log(start, [a.video.parent, a.video.parent.parent])
+    if log_path:
+        try:
+            log = flightlog.load(log_path, a.dji_key or flightlog.api_key_from_env())
+            matched = flightlog.attach(tel, log)
+            print(f"Flight log {log_path.name}: {'matched' if matched else 'does not match this video'}",
+                  file=sys.stderr)
+        except flightlog.FlightLogError as e:
+            print(f"Flight log skipped: {e}", file=sys.stderr)
     render(a.video, tel, out, a.style, opts, a.format, a.quality, not a.no_hw,
            a.rate, a.offset, progress)
     print(f"\nSaved {out}", file=sys.stderr)

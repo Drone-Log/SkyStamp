@@ -9,8 +9,10 @@ class CinematicStyle(Style):
     description = "Lower-third panel with large numbers, like a broadcast graphic."
 
     def _layout(self):
-        n = max(1, len([k for k in ("altitude", "speed", "vspeed", "home", "distance", "heading")
-                        if self.opt.has(k)]))
+        n = len([k for k in ("altitude", "speed", "vspeed", "home", "distance", "heading") if self.opt.has(k)])
+        if self.opt.has("battery") and any(s.battery is not None for s in self.tel.samples):
+            n += 1
+        n = max(1, n)
         col_w = self.px(170)
         has_map = self.opt.has("map")
         map_w = self.px(150) if has_map else 0

@@ -30,10 +30,12 @@ FIELDS: dict[str, str] = {
     "datetime": "Date & time",
     "camera": "Camera settings",
     "gps_status": "GPS signal",
+    "battery": "Battery %",
     "gps": "GPS coordinates",
     "map": "Flight path map",
 }
-DEFAULT_FIELDS = ["altitude", "speed", "vspeed", "home", "datetime", "camera", "gps_status", "gps", "map"]
+DEFAULT_FIELDS = ["altitude", "speed", "vspeed", "home", "datetime", "camera", "gps_status", "battery", "gps",
+                  "map"]
 
 POSITIONS = ["bottom-left", "bottom-center", "bottom-right", "top-left", "top-center", "top-right"]
 
@@ -136,6 +138,8 @@ class Style:
             out.append(Metric("distance", "FLOWN", "DIST", *U.distance(s.dist_total, u)))
         if self.opt.has("heading"):
             out.append(Metric("heading", "HEADING", "HDG", *U.heading(s.heading)))
+        if self.opt.has("battery") and s.battery is not None:
+            out.append(Metric("battery", "BATTERY", "BAT", f"{s.battery:.0f}", "%"))
         return out
 
     def datetime_text(self, s: Sample) -> str | None:
@@ -167,8 +171,13 @@ class Style:
     def gps_badge_width(self, s: Sample, size: float = 24) -> int:
         if not self.opt.has("gps_status"):
             return 0
-        label = "GPS" if s.gps_fix is not False else "NO GPS"
-        return self.px(size) + self.px(4) + self.text_width(label, self.font(size * 0.9, "Bold"))
+        return self.px(size) + self.px(4) + self.text_width(self._badge_label(s), self.font(size * 0.9, "Bold"))
+
+    @staticmethod
+    def _badge_label(s: Sample) -> str:
+        if s.gps_fix is False:
+            return "NO GPS" if not s.satellites else f"NO GPS {s.satellites}"
+        return f"GPS {s.satellites}" if s.satellites is not None else "GPS"
 
     def gps_badge(self, d, x: int, y: int, s: Sample, size: float = 24) -> int:
         """Satellite icon + "GPS", green with a fix, red without. (x, y) is the
@@ -189,7 +198,7 @@ class Style:
         d.rectangle((cx - b, cy - b, cx + b, cy + b), fill=color, outline=outline, width=max(1, lw // 2))
         d.arc((cx - b, cy + b * 0.6, cx + b, cy + b * 2.6), 200, 340, fill=color, width=lw)
         f = self.font(size * 0.9, "Bold")
-        label = "GPS" if s.gps_fix is not False else "NO GPS"
+        label = self._badge_label(s)
         self.text(d, (x + h + self.px(4), cy), label, f, color, anchor="lm")
         return h + self.px(4) + self.text_width(label, f)
 

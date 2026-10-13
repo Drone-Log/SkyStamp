@@ -12,3 +12,4 @@ dist/
 !tests/data/*.srt
 .DS_Store
 .pytest_cache/
+packaging/vendor/

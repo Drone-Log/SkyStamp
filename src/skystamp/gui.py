@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -37,6 +38,7 @@ from PySide6.QtWidgets import (
 from . import __version__
 from .maptiles import PROVIDERS
 from .styles import DEFAULT_FIELDS, FIELDS, POSITIONS, STYLES, OverlayOptions
+from . import flightlog
 from .djmd import attach_video_meta
 from .telemetry import Telemetry, parse_srt
 from .video import FORMATS, RenderCancelled, VideoInfo, extract_frame, hw_encoder, probe, render
@@ -189,6 +191,22 @@ class MainWindow(QMainWindow):
         b2.clicked.connect(self.choose_srt)
         fl.addRow(self.srt_edit)
         fl.addRow(b2)
+        self.log_edit = QLineEdit(readOnly=True, placeholderText="Optional: DJI Fly flight log")
+        self.log_edit.setToolTip("FlightRecord_….txt from the DJI Fly app. Adds GPS satellite count and battery.")
+        fl.addRow(self.log_edit)
+        lrow = QHBoxLayout()
+        b3 = QPushButton("Choose flight log…")
+        b3.clicked.connect(self.choose_log)
+        self.key_btn = QPushButton("DJI API key…")
+        self.key_btn.setToolTip("Needed to read encrypted DJI Fly logs. Free from developer.dji.com.")
+        self.key_btn.clicked.connect(self.edit_api_key)
+        lrow.addWidget(b3, 1)
+        lrow.addWidget(self.key_btn)
+        fl.addRow(lrow)
+        self.log_status = QLabel(wordWrap=True)
+        self.log_status.setStyleSheet("color:#888;")
+        self.log_status.setMinimumWidth(1)
+        fl.addRow(self.log_status)
         side.addWidget(files)
 
         style = QGroupBox("2 · Style")
@@ -422,6 +440,84 @@ class MainWindow(QMainWindow):
         self.status.setText("")
         self._update_info()
         self._update_enabled()
+        self._schedule_preview()
+        self._auto_find_log()
+
+    # -- DJI Fly flight log ------------------------------------------------
+    def _log_folders(self) -> list[Path]:
+        folders = []
+        if self.video:
+            folders += [self.video.parent, self.video.parent.parent]
+        last = self.settings.value("log_dir", "")
+        if last:
+            folders.append(Path(last))
+        folders.append(Path.home() / "Desktop" / "FlightRecords")
+        return folders
+
+    def _auto_find_log(self):
+        self.flight_log = None
+        self.log_edit.clear()
+        self.log_status.setText("")
+        start = next((s.timestamp for s in self.tel.samples if s.timestamp), None) if self.tel else None
+        if start is None:
+            return
+        found = flightlog.find_log(start, self._log_folders())
+        if found:
+            self.load_log(found)
+
+    def choose_log(self):
+        start = self.settings.value("log_dir", str(self.video.parent if self.video else Path.home()))
+        path, _ = QFileDialog.getOpenFileName(self, "Choose DJI Fly flight log", start,
+                                              "DJI flight logs (*.txt);;All files (*)")
+        if path:
+            self.settings.setValue("log_dir", str(Path(path).parent))
+            self.load_log(Path(path))
+
+    def api_key(self) -> str | None:
+        return (self.settings.value("dji_api_key", "") or "").strip() or flightlog.api_key_from_env()
+
+    def edit_api_key(self):
+        key, ok = QInputDialog.getText(
+            self, "DJI API key",
+            "DJI Fly logs are encrypted. To read them, create a free app at developer.dji.com\n"
+            "(App Type: Open API) and paste its App Key here. It stays on this computer.",
+            QLineEdit.Password, self.settings.value("dji_api_key", ""))
+        if ok:
+            self.settings.setValue("dji_api_key", key.strip())
+            if self.log_edit.text():
+                self.load_log(Path(self.log_edit.text()))
+
+    def load_log(self, path: Path):
+        if not self.tel:
+            return
+        self.log_edit.setText(str(path))
+        self.log_status.setText("Reading flight log…")
+        self.log_req = getattr(self, "log_req", 0) + 1
+        req, key = self.log_req, self.api_key()
+        job = _Job(req, lambda: flightlog.load(path, key))
+        job.signals.done.connect(self._log_loaded)
+        self.pool.start(job)
+
+    def _log_loaded(self, req, result):
+        if req != self.log_req or not self.tel:
+            return
+        if isinstance(result, Exception):
+            self.flight_log = None
+            msg = str(result) if isinstance(result, flightlog.FlightLogError) else f"Couldn't read log: {result}"
+            self.log_status.setText(f"⚠ {msg}")
+            return
+        if not flightlog.attach(self.tel, result):
+            self.log_status.setText("⚠ This flight log doesn't match the video (different flight or time).")
+            return
+        self.flight_log = result
+        sats = [s.satellites for s in self.tel.samples if s.satellites is not None]
+        bats = [s.battery for s in self.tel.samples if s.battery is not None]
+        parts = [f"✓ Flight log matched ({result.start.astimezone():%H:%M}–{result.end.astimezone():%H:%M})"]
+        if sats:
+            parts.append(f"satellites {min(sats)}–{max(sats)}")
+        if bats:
+            parts.append(f"battery {bats[0]:.0f}% → {bats[-1]:.0f}%")
+        self.log_status.setText(" · ".join(parts))
         self._schedule_preview()
 
     def _update_info(self):
