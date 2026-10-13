@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SkyStamp: flight data on your drone videos</title>
-<meta name="description" content="Free, open-source app that burns your DJI drone's flight data (altitude, speed, distance, GPS, flight path map) into your videos. Windows, macOS and Linux.">
+<title>SkyStamp: add DJI flight data (SRT) to your drone videos</title>
+<meta name="description" content="Free, open-source app that burns your DJI drone's SRT telemetry into video: altitude, speed, satellites, battery and a flight map. Windows, macOS, Linux.">
 <link rel="canonical" href="https://getskystamp.app/">
 <meta name="theme-color" content="#0a0a0f">
 
@@ -36,6 +36,9 @@
  "url":"https://getskystamp.app/","downloadUrl":"https://github.com/Drone-Log/SkyStamp/releases/latest",
  "license":"https://opensource.org/licenses/MIT","image":"https://getskystamp.app/img/og.jpg?v=2",
  "description":"Burn DJI drone flight data (altitude, speed, GPS satellites, flight path) into your videos."}
+</script>
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How do I add the SRT flight data to my DJI video?", "acceptedAnswer": {"@type": "Answer", "text": "Turn on Video Subtitles in the DJI Fly camera settings before you record. The drone then saves a .SRT file next to every .MP4. Open the video in SkyStamp, which picks up the SRT automatically, choose a style and click Create video."}}, {"@type": "Question", "name": "Which DJI drones does it work with?", "acceptedAnswer": {"@type": "Answer", "text": "Any DJI drone that records an SRT file: the newer bracket format (Neo, Neo 2, Mini 3 and 4 Pro, Air 3, Avata 2…) and the older one (Mini 2, Air 2…). It is tested most on the DJI Neo 2. If your model shows wrong data, please open an issue with a short sample SRT."}}, {"@type": "Question", "name": "My drone didn't create an SRT file. What now?", "acceptedAnswer": {"@type": "Answer", "text": "The SRT is only written while Video Subtitles is switched on in DJI Fly, and it can't be recreated afterwards. Turn it on for your next flights. Without an SRT, SkyStamp has no flight data to show."}}, {"@type": "Question", "name": "Is SkyStamp really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. It's open source under the MIT licence, with no ads, no account and no paid tier. You can also change the code and share your version."}}, {"@type": "Question", "name": "Can I put the overlay on my video in DaVinci Resolve, Premiere or Final Cut?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Choose MOV · ProRes 4444 overlay only as the output format. You get a transparent video with just the data, which you place on a track above your footage."}}, {"@type": "Question", "name": "Can it show the number of GPS satellites and the battery level?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, when you add the flight log from the DJI Fly app (FlightRecord_….txt). DJI encrypts these logs, so you need a free API key from developer.dji.com. Without a log, the overlay still shows GPS signal on/off."}}, {"@type": "Question", "name": "Can I design my own overlay?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Click Customize…, then drag elements on the preview, choose what each one shows, and save it as your own style. Styles are small files you can export and share."}}, {"@type": "Question", "name": "Does SkyStamp upload my videos?", "acceptedAnswer": {"@type": "Answer", "text": "No. Everything is processed on your computer. The only optional connections are map tiles for the mini-map and, if you add a flight log, DJI's key service to decrypt it."}}]}
 </script>
 <link rel="icon" href="favicon.png">
 <link rel="apple-touch-icon" href="img/icon.png">
@@ -216,6 +219,17 @@
   .store .badge img { height: 48px; width: auto; }
   .store .badge:hover { opacity: .9; }
 
+  /* FAQ */
+  .faq { max-width: 820px; margin: 0 auto; display: grid; gap: 10px; }
+  .qa { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0 22px; }
+  .qa[open] { border-color: var(--border-hover); }
+  .qa summary { cursor: pointer; list-style: none; padding: 18px 0; font-weight: 600; font-size: 16px;
+                display: flex; justify-content: space-between; gap: 16px; }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+  .qa[open] summary::after { content: "–"; }
+  .qa p { margin: 0 0 18px; color: var(--text-2); font-size: 15px; }
+
   /* Privacy & licence */
   .fine { margin-top: 18px; padding: 20px 24px; border-radius: var(--radius); background: var(--bg-2);
           border: 1px solid var(--border); color: var(--text-2); font-size: 14px; }
@@ -239,6 +253,7 @@
       <a href="#styles">Styles</a>
       <a href="#features">Features</a>
       <a href="#how">How it works</a>
+      <a href="#faq">FAQ</a>
       <a href="https://github.com/Drone-Log/SkyStamp" target="_blank" rel="noopener">GitHub</a>
       <a class="btn btn-ghost btn-sm" href="#download">Download</a>
     </div>
@@ -258,7 +273,7 @@
     <div class="trust"><span>No account</span><span>Works offline</span><span>Windows · macOS · Linux</span><span>MIT licensed</span></div>
     <div class="shot">
       <div class="bar"><i></i><i></i><i></i></div>
-      <img src="img/app.jpg" width="1600" height="1066" alt="SkyStamp app: video preview with flight data overlay and style settings">
+      <img src="img/app.webp" width="1600" height="1066" fetchpriority="high" alt="SkyStamp app: video preview with flight data overlay and style settings">
     </div>
   </div>
 </header>
@@ -277,7 +292,7 @@
       <button class="tab" role="tab" aria-selected="false" data-style="minimal">Minimal</button>
     </div>
     <div class="gallery">
-      <img id="style-img" src="img/style-hud.jpg" width="1600" height="900" alt="HUD style">
+      <img id="style-img" src="img/style-hud.webp" width="1280" height="720" loading="lazy" decoding="async" alt="HUD style">
       <div class="caption" id="style-caption"></div>
     </div>
   </div>
@@ -365,6 +380,49 @@
   </div>
 </section>
 
+<section id="faq" style="padding-top:0">
+  <div class="wrap">
+    <div class="head center">
+      <div class="eyebrow">FAQ</div>
+      <h2>Questions pilots ask</h2>
+    </div>
+    <div class="faq">
+      <details class="qa" open>
+        <summary>How do I add the SRT flight data to my DJI video?</summary>
+        <p>Turn on <b>Video Subtitles</b> in the DJI Fly camera settings before you record. The drone then saves a <code>.SRT</code> file next to every <code>.MP4</code>. Open the video in SkyStamp, which picks up the SRT automatically, choose a style and click <b>Create video</b>.</p>
+      </details>
+      <details class="qa">
+        <summary>Which DJI drones does it work with?</summary>
+        <p>Any DJI drone that records an SRT file: the newer bracket format (Neo, Neo 2, Mini 3 and 4 Pro, Air 3, Avata 2…) and the older one (Mini 2, Air 2…). It is tested most on the DJI Neo 2. If your model shows wrong data, please <a href="https://github.com/Drone-Log/SkyStamp/issues" target="_blank" rel="noopener">open an issue</a> with a short sample SRT.</p>
+      </details>
+      <details class="qa">
+        <summary>My drone didn't create an SRT file. What now?</summary>
+        <p>The SRT is only written while <b>Video Subtitles</b> is switched on in DJI Fly, and it can't be recreated afterwards. Turn it on for your next flights. Without an SRT, SkyStamp has no flight data to show.</p>
+      </details>
+      <details class="qa">
+        <summary>Is SkyStamp really free?</summary>
+        <p>Yes. It's open source under the MIT licence, with no ads, no account and no paid tier. You can also change the code and share your version.</p>
+      </details>
+      <details class="qa">
+        <summary>Can I put the overlay on my video in DaVinci Resolve, Premiere or Final Cut?</summary>
+        <p>Yes. Choose <b>MOV · ProRes 4444 overlay only</b> as the output format. You get a transparent video with just the data, which you place on a track above your footage.</p>
+      </details>
+      <details class="qa">
+        <summary>Can it show the number of GPS satellites and the battery level?</summary>
+        <p>Yes, when you add the flight log from the DJI Fly app (<code>FlightRecord_….txt</code>). DJI encrypts these logs, so you need a free API key from developer.dji.com. Without a log, the overlay still shows GPS signal on/off.</p>
+      </details>
+      <details class="qa">
+        <summary>Can I design my own overlay?</summary>
+        <p>Yes. Click <b>Customize…</b>, then drag elements on the preview, choose what each one shows, and save it as your own style. Styles are small files you can export and share.</p>
+      </details>
+      <details class="qa">
+        <summary>Does SkyStamp upload my videos?</summary>
+        <p>No. Everything is processed on your computer. The only optional connections are map tiles for the mini-map and, if you add a flight log, DJI's key service to decrypt it.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
 <section id="privacy" style="padding-top:0">
   <div class="wrap">
     <div class="head">
@@ -404,7 +462,7 @@
 <section id="drone-log" style="padding-top:0">
   <div class="wrap">
     <div class="sibling">
-      <img class="app-icon" src="img/drone-log-icon.png" width="112" height="112" alt="Drone Log app icon">
+      <img class="app-icon" src="img/drone-log-icon.png" width="112" height="112" loading="lazy" decoding="async" alt="Drone Log app icon">
       <div>
         <span class="ro"><span class="flag" aria-hidden="true"><i style="background:#002B7F"></i><i style="background:#FCD116"></i><i style="background:#CE1126"></i></span>Flying in Romania?</span>
         <h2>Drone Log</h2>
@@ -420,7 +478,7 @@
           <a class="btn btn-ghost" href="https://drone-log.app/" target="_blank" rel="noopener">Open drone-log.app →</a>
           <a class="badge" href="https://apps.apple.com/ro/app/drone-log/id6801162310" target="_blank" rel="noopener"
              aria-label="Download Drone Log on the App Store (opens in a new tab)">
-            <img src="img/app-store-badge.svg" width="144" height="48" alt="Download on the App Store"></a>
+            <img src="img/app-store-badge.svg" width="144" height="48" loading="lazy" alt="Download on the App Store"></a>
         </div>
         <p style="margin:14px 0 0; font-size:13px; color:var(--text-3)">Currently covers Romanian airspace only. Free to download on iPhone, also on the web.</p>
       </div>
@@ -462,12 +520,12 @@
   const img = document.getElementById("style-img"), cap = document.getElementById("style-caption");
   document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t === tab));
-    img.src = `img/style-${tab.dataset.style}.jpg`;
+    img.src = `img/style-${tab.dataset.style}.webp`;
     img.alt = `${tab.textContent} style`;
     cap.innerHTML = captions[tab.dataset.style];
   }));
   cap.innerHTML = captions.hud;
-  ["classic", "cinematic", "minimal"].forEach(s => { new Image().src = `img/style-${s}.jpg`; });
+  ["classic", "cinematic", "minimal"].forEach(s => { new Image().src = `img/style-${s}.webp`; });
 
   // Highlight the visitor's platform
   (async () => {
