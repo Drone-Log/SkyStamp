@@ -10,7 +10,7 @@ class ClassicStyle(Style):
     description = "Flight data top-left, camera top-right, speed box at the bottom, GPS and time in the corners."
 
     LABELS = {"altitude": "ALT", "speed": "H.SPD", "vspeed": "V.SPD", "home": "DIST",
-              "distance": "FLOWN", "heading": "HDG"}
+              "distance": "FLOWN", "heading": "HDG", "battery": "BAT"}
 
     def _box(self):
         w, h = self.px(130), self.px(120)

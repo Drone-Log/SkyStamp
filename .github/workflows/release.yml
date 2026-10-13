@@ -36,6 +36,7 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-cursor0 libfuse2
       - run: pip install -e ".[dev]"
+      - run: python packaging/fetch_dji_log.py
       - run: python packaging/build.py
 
       - name: Package (Windows)

@@ -26,6 +26,12 @@ args = [
         "QtWebEngineCore", "QtWebEngineWidgets", "QtQml", "QtQuick", "Qt3DCore", "QtMultimedia",
         "QtCharts", "QtDataVisualization", "QtPdf", "QtSql", "QtTest", "QtBluetooth", "QtNetwork")],
 ]
+# DJI Fly log reader (fetched by packaging/fetch_dji_log.py) and its licence
+vendor = root / "packaging" / "vendor" / "dji-log"
+sep = ";" if sys.platform == "win32" else ":"
+for exe in vendor.glob("dji-log*"):
+    args += ["--add-binary", f"{exe}{sep}dji-log"]
+args += ["--add-data", f"{root / 'packaging' / 'licenses'}{sep}licenses"]
 icon = root / "packaging" / ("icon.icns" if sys.platform == "darwin" else "icon.ico")
 if icon.exists():
     args += ["--icon", str(icon)]

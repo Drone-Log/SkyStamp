@@ -47,6 +47,7 @@ pull requests with passing checks.
 | `src/skystamp/telemetry.py` | SRT parsing, speed/distance/heading calculations |
 | `src/skystamp/djmd.py` | DJI metadata embedded in the MP4 (GPS status, drone-measured speed) |
 | `src/skystamp/styles/` | Overlay styles, one file each |
+| `src/skystamp/flightlog.py` | DJI Fly flight logs: satellites, battery (via dji-log-parser) |
 | `src/skystamp/maptiles.py` | Street / satellite map tiles for the mini-map |
 | `src/skystamp/video.py` | ffmpeg: probing, preview frames, rendering |
 | `src/skystamp/gui.py` / `cli.py` | Desktop app / command line |

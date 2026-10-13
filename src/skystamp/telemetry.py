@@ -67,6 +67,8 @@ class Sample:
     heading: float | None = None  # degrees, 0 = north
     gps_fix: bool | None = None  # satellite fix, from the video metadata or GPS presence
     speed_source: str = "gps"  # "gps" (computed) or "drone" (measured, from video metadata)
+    satellites: int | None = None  # from a DJI Fly flight log
+    battery: float | None = None  # percent, from a DJI Fly flight log
 
 
 @dataclass
