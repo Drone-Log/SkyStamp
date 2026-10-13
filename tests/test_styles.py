@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from skystamp.editor import anchor_for, move_element
+from skystamp.styles.layout import anchor_for, move_element
 from skystamp.styles import STYLES, OverlayOptions, SpecStyle, get_style
 from skystamp.styles import library as lib
 from skystamp.styles.engine import normalize
