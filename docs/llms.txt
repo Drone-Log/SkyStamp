@@ -35,6 +35,40 @@ Current version: 1.2
 
 SkyStamp has no servers, no accounts, no analytics and no crash reporting. Videos, SRT files and flight logs are processed on the user's computer. The only optional network connections are map tiles (OpenStreetMap or Esri) and, when a flight log is added, DJI's key service to decrypt it.
 
+## FAQ
+
+### How do I add the SRT flight data to my DJI video?
+
+Turn on Video Subtitles in the DJI Fly camera settings before you record. The drone then saves a .SRT file next to every .MP4. Open the video in SkyStamp, which picks up the SRT automatically, choose a style and click Create video.
+
+### Which DJI drones does it work with?
+
+Any DJI drone that records an SRT file: the newer bracket format (Neo, Neo 2, Mini 3 and 4 Pro, Air 3, Avata 2…) and the older one (Mini 2, Air 2…). It is tested most on the DJI Neo 2. If your model shows wrong data, please open an issue with a short sample SRT.
+
+### My drone didn't create an SRT file. What now?
+
+The SRT is only written while Video Subtitles is switched on in DJI Fly, and it can't be recreated afterwards. Turn it on for your next flights. Without an SRT, SkyStamp has no flight data to show.
+
+### Is SkyStamp really free?
+
+Yes. It's open source under the MIT licence, with no ads, no account and no paid tier. You can also change the code and share your version.
+
+### Can I put the overlay on my video in DaVinci Resolve, Premiere or Final Cut?
+
+Yes. Choose MOV · ProRes 4444 overlay only as the output format. You get a transparent video with just the data, which you place on a track above your footage.
+
+### Can it show the number of GPS satellites and the battery level?
+
+Yes, when you add the flight log from the DJI Fly app (FlightRecord_….txt). DJI encrypts these logs, so you need a free API key from developer.dji.com. Without a log, the overlay still shows GPS signal on/off.
+
+### Can I design my own overlay?
+
+Yes. Click Customize…, then drag elements on the preview, choose what each one shows, and save it as your own style. Styles are small files you can export and share.
+
+### Does SkyStamp upload my videos?
+
+No. Everything is processed on your computer. The only optional connections are map tiles for the mini-map and, if you add a flight log, DJI's key service to decrypt it.
+
 ## Links
 
 - [Website and FAQ](https://getskystamp.app/#faq)
