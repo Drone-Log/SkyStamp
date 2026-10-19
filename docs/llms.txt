@@ -1,0 +1,43 @@
+# SkyStamp
+
+> SkyStamp is a free, open-source desktop app (Windows, macOS, Linux) that burns a DJI drone's SRT flight telemetry into the video: altitude, speed, distance, GPS satellites, battery and a live flight-path map. Everything runs locally; no account, no uploads. MIT licensed.
+
+Website: https://getskystamp.app/
+Source code: https://github.com/Drone-Log/SkyStamp
+Current version: 1.2
+
+## What it does
+
+- Reads the `.SRT` file a DJI drone saves next to each `.MP4` (when "Video Subtitles" is on in DJI Fly) and finds it automatically.
+- Supports both SRT formats: the newer bracket format (Neo, Neo 2, Mini 3 / 4 Pro, Air 3, Avata 2…) and the classic one (Mini 2, Air 2…). Tested most on the DJI Neo 2.
+- Draws a flight-path mini-map over a street map or satellite imagery, with the takeoff point and current position.
+- Shows GPS lock and the speed measured by the drone (read from the MP4). Adding the DJI Fly flight log (`FlightRecord_….txt`) also shows satellite count and battery level; this needs a free DJI API key from developer.dji.com because DJI encrypts the logs.
+- Four built-in styles (HUD, Classic, Cinematic, Minimal) plus a visual editor to design your own; styles are small files you can share.
+- Fast 4K rendering with GPU encoders (Apple, NVIDIA, Intel, AMD) and software fallback; keeps resolution, frame rate and audio. ffmpeg is bundled.
+- Can export a transparent ProRes 4444 overlay (MOV) to place above footage in DaVinci Resolve, Premiere or Final Cut.
+- Includes a command-line version for batch jobs.
+
+## How to use it
+
+1. Turn on Video Subtitles in DJI Fly camera settings before recording (the SRT cannot be recreated afterwards).
+2. Drag the `.MP4` onto SkyStamp; the matching `.SRT` is picked up.
+3. Pick a style, preview any frame, click Create video.
+
+## Download
+
+- [Windows 64-bit (.zip)](https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-windows-x64.zip): unzip and run SkyStamp.exe.
+- [macOS Apple Silicon (.dmg)](https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-macos-arm64.dmg): signed and notarized by Apple.
+- [macOS Intel (.dmg)](https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-macos-intel.dmg)
+- [Linux x86_64 (AppImage)](https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-linux-x86_64.AppImage)
+- [All releases](https://github.com/Drone-Log/SkyStamp/releases)
+
+## Privacy
+
+SkyStamp has no servers, no accounts, no analytics and no crash reporting. Videos, SRT files and flight logs are processed on the user's computer. The only optional network connections are map tiles (OpenStreetMap or Esri) and, when a flight log is added, DJI's key service to decrypt it.
+
+## Links
+
+- [Website and FAQ](https://getskystamp.app/#faq)
+- [README](https://github.com/Drone-Log/SkyStamp/blob/main/README.md)
+- [Report an issue](https://github.com/Drone-Log/SkyStamp/issues)
+- [License (MIT)](https://github.com/Drone-Log/SkyStamp/blob/main/LICENSE)

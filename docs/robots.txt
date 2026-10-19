@@ -1,4 +1,25 @@
+# SkyStamp website: everyone is welcome, including AI assistants and search.
+# A plain-text summary for language models lives at /llms.txt
+
 User-agent: *
+Allow: /
+
+# AI search and assistant crawlers, explicitly allowed
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: Meta-ExternalAgent
+User-agent: Amazonbot
+User-agent: DuckAssistBot
+User-agent: MistralAI-User
+User-agent: CCBot
 Allow: /
 
 Sitemap: https://getskystamp.app/sitemap.xml
