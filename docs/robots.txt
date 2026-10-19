@@ -1,7 +1,9 @@
 # SkyStamp website: everyone is welcome, including AI assistants and search.
+# Content-Signal (https://contentsignals.org): search, AI answers and AI training are all welcome.
 # A plain-text summary for language models lives at /llms.txt
 
 User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
 
 # AI search and assistant crawlers, explicitly allowed
@@ -20,6 +22,7 @@ User-agent: Amazonbot
 User-agent: DuckAssistBot
 User-agent: MistralAI-User
 User-agent: CCBot
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
 
 Sitemap: https://getskystamp.app/sitemap.xml
