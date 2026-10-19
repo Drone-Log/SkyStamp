@@ -13,6 +13,7 @@ is downloaded once (pinned version, SHA-256 checked) into the cache folder.
 
 from __future__ import annotations
 
+import base64
 import bisect
 import hashlib
 import io
@@ -177,6 +178,44 @@ def _json_cache(path: Path) -> Path:
     return cache_dir().parent / "flightlogs" / f"{digest}-{PARSER_VERSION}.json"
 
 
+def _cache_key_material() -> bytes:
+    seed = "|".join([
+        "skystamp-flightlog-cache-v1",
+        str(Path.home()),
+        platform.node(),
+    ]).encode("utf-8")
+    return hashlib.sha256(seed).digest()
+
+
+def _xor_stream(data: bytes, key: bytes) -> bytes:
+    out = bytearray(len(data))
+    counter = 0
+    offset = 0
+    while offset < len(data):
+        block = hashlib.sha256(key + counter.to_bytes(8, "big")).digest()
+        take = min(len(block), len(data) - offset)
+        for i in range(take):
+            out[offset + i] = data[offset + i] ^ block[i]
+        offset += take
+        counter += 1
+    return bytes(out)
+
+
+def _encrypt_cache_payload(obj: dict) -> bytes:
+    plain = json.dumps(obj, separators=(",", ":")).encode("utf-8")
+    cipher = _xor_stream(plain, _cache_key_material())
+    return b"ENC1:" + base64.b64encode(cipher)
+
+
+def _decrypt_cache_payload(blob: bytes) -> dict:
+    if blob.startswith(b"ENC1:"):
+        cipher = base64.b64decode(blob[5:])
+        plain = _xor_stream(cipher, _cache_key_material())
+        return json.loads(plain.decode("utf-8"))
+    # Backward compatibility for existing plaintext caches.
+    return json.loads(blob.decode("utf-8"))
+
+
 def load(path: str | Path, api_key: str | None) -> FlightLog:
     """Decrypt (if needed) and read a DJI Fly flight log.
 
@@ -185,14 +224,14 @@ def load(path: str | Path, api_key: str | None) -> FlightLog:
     path = Path(path)
     cache = _json_cache(path)
     if cache.is_file():
-        raw = json.loads(cache.read_text())
+        raw = _decrypt_cache_payload(cache.read_bytes())
     else:
         raw = _run_parser(path, api_key)
         cache.parent.mkdir(parents=True, exist_ok=True)
         # Only what we use: serial numbers etc. never touch the disk
         slim = {"details": {"aircraftName": raw.get("details", {}).get("aircraftName", "")},
                 "frames": [_slim(f) for f in raw.get("frames", [])]}
-        cache.write_text(json.dumps(slim))
+        cache.write_bytes(_encrypt_cache_payload(slim))
         raw = slim
     return _to_log(path, raw)
 
