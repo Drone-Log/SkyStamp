@@ -226,31 +226,34 @@ class MainWindow(QMainWindow):
 
         files = QGroupBox("1 · Files")
         fl = QFormLayout(files)
+        # One row per file: path + its button, so the panel stays short
+        def file_row(edit, *buttons):
+            row = QHBoxLayout()
+            row.addWidget(edit, 1)
+            for btn in buttons:
+                row.addWidget(btn)
+            fl.addRow(row)
+
         self.video_edit = QLineEdit(readOnly=True, placeholderText="No video selected")
-        b = QPushButton("Choose video…")
+        b = QPushButton("Video…")
         b.clicked.connect(self.choose_video)
-        fl.addRow(self.video_edit)
-        fl.addRow(b)
+        file_row(self.video_edit, b)
         self.srt_edit = QLineEdit(readOnly=True, placeholderText="Found automatically next to the video")
-        b2 = QPushButton("Choose SRT…")
+        b2 = QPushButton("SRT…")
         b2.clicked.connect(self.choose_srt)
-        fl.addRow(self.srt_edit)
-        fl.addRow(b2)
+        file_row(self.srt_edit, b2)
         self.log_edit = QLineEdit(readOnly=True, placeholderText="Optional: DJI Fly flight log")
         self.log_edit.setToolTip("FlightRecord_….txt from the DJI Fly app. Adds GPS satellite count and battery.")
-        fl.addRow(self.log_edit)
-        lrow = QHBoxLayout()
-        b3 = QPushButton("Choose flight log…")
+        b3 = QPushButton("Log…")
         b3.clicked.connect(self.choose_log)
-        self.key_btn = QPushButton("DJI API key…")
+        self.key_btn = QPushButton("API key…")
         self.key_btn.setToolTip("Needed to read encrypted DJI Fly logs. Free from developer.dji.com.")
         self.key_btn.clicked.connect(self.edit_api_key)
-        lrow.addWidget(b3, 1)
-        lrow.addWidget(self.key_btn)
-        fl.addRow(lrow)
+        file_row(self.log_edit, b3, self.key_btn)
         self.log_status = QLabel(wordWrap=True)
         self.log_status.setStyleSheet("color:#888;")
         self.log_status.setMinimumWidth(1)
+        self.log_status.hide()  # shown only when there's something to say
         fl.addRow(self.log_status)
         side.addWidget(files)
 
@@ -303,10 +306,14 @@ class MainWindow(QMainWindow):
         sl.addRow("Position", self.position_combo)
         self.size_slider = QSlider(Qt.Horizontal, minimum=60, maximum=180, value=100)
         self.size_slider.valueChanged.connect(self._schedule_preview)
-        sl.addRow("Text size", self.size_slider)
         self.color_btn = QPushButton()
+        self.color_btn.setToolTip("Accent color")
+        self.color_btn.setFixedWidth(100)
         self.color_btn.clicked.connect(self.choose_color)
-        sl.addRow("Accent color", self.color_btn)
+        size_row = QHBoxLayout()
+        size_row.addWidget(self.size_slider, 1)
+        size_row.addWidget(self.color_btn)
+        sl.addRow("Size · color", size_row)
         grid = QGridLayout()
         self.field_checks: dict[str, QCheckBox] = {}
         for i, (key, label) in enumerate(FIELDS.items()):
@@ -354,46 +361,60 @@ class MainWindow(QMainWindow):
         self.output_edit = QLineEdit(placeholderText="Where to save the final video")
         ob = QPushButton("Save as…")
         ob.clicked.connect(self.choose_output)
-        ol.addRow(self.output_edit)
-        ol.addRow(ob)
-        side.addWidget(out)
+        orow = QHBoxLayout()
+        orow.addWidget(self.output_edit, 1)
+        orow.addWidget(ob)
+        ol.addRow(orow)
+        side.addStretch(1)
+
+        # Output and the Create button stay in view below the scrolling settings
+        bottom = QWidget()
+        actions = QVBoxLayout(bottom)
+        actions.setContentsMargins(0, 6, 8, 0)
+        actions.addWidget(out)
 
         self.render_btn = QPushButton("Create video")
         self.render_btn.setMinimumHeight(44)
         self.render_btn.setStyleSheet("font-size:16px; font-weight:600;")
         self.render_btn.clicked.connect(self.start_render)
-        side.addWidget(self.render_btn)
+        actions.addWidget(self.render_btn)
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self.cancel_render)
         self.cancel_btn.hide()
-        side.addWidget(self.cancel_btn)
+        actions.addWidget(self.cancel_btn)
         self.progress = QProgressBar(textVisible=True)
         self.progress.hide()
-        side.addWidget(self.progress)
+        actions.addWidget(self.progress)
         self.status = QLabel(wordWrap=True)
-        side.addWidget(self.status)
+        actions.addWidget(self.status)
         self.open_btn = QPushButton("Show in folder")
         self.open_btn.clicked.connect(self.reveal_output)
         self.open_btn.hide()
-        side.addWidget(self.open_btn)
-        side.addStretch(1)
+        actions.addWidget(self.open_btn)
 
         # Long combo entries / file paths must shrink, never widen the panel
-        for combo in panel.findChildren(QComboBox):
-            combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-            combo.setMinimumContentsLength(8)
-            combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        for edit in panel.findChildren(QLineEdit):
-            edit.setMinimumWidth(0)
-        for form in panel.findChildren(QFormLayout):
-            # macOS keeps fields at their size hint by default; let them fill the panel
-            form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        for w in (panel, bottom):
+            for combo in w.findChildren(QComboBox):
+                combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+                combo.setMinimumContentsLength(8)
+                combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            for edit in w.findChildren(QLineEdit):
+                edit.setMinimumWidth(0)
+            for form in w.findChildren(QFormLayout):
+                # macOS keeps fields at their size hint by default; let them fill the panel
+                form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
         scroll = QScrollArea(widgetResizable=True)
         scroll.setWidget(panel)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setFixedWidth(430)
         scroll.setFrameShape(QScrollArea.NoFrame)
-        outer.addWidget(scroll)
+        right = QWidget()
+        right.setFixedWidth(430)
+        rl = QVBoxLayout(right)
+        rl.setContentsMargins(0, 0, 0, 0)
+        rl.setSpacing(0)
+        rl.addWidget(scroll, 1)
+        rl.addWidget(bottom)
+        outer.addWidget(right)
 
     # -- settings ----------------------------------------------------------
     def _load_settings(self):
@@ -539,7 +560,7 @@ class MainWindow(QMainWindow):
     def _auto_find_log(self):
         self.flight_log = None
         self.log_edit.clear()
-        self.log_status.setText("")
+        self._log_note("")
         start = next((s.timestamp for s in self.tel.samples if s.timestamp), None) if self.tel else None
         if start is None:
             return
@@ -573,7 +594,7 @@ class MainWindow(QMainWindow):
         if not self.tel:
             return
         self.log_edit.setText(str(path))
-        self.log_status.setText("Reading flight log…")
+        self._log_note("Reading flight log…")
         self.log_req = getattr(self, "log_req", 0) + 1
         req, key = self.log_req, self.api_key()
         job = _Job(req, lambda: flightlog.load(path, key))
@@ -586,10 +607,10 @@ class MainWindow(QMainWindow):
         if isinstance(result, Exception):
             self.flight_log = None
             msg = str(result) if isinstance(result, flightlog.FlightLogError) else f"Couldn't read log: {result}"
-            self.log_status.setText(f"⚠ {msg}")
+            self._log_note(f"⚠ {msg}")
             return
         if not flightlog.attach(self.tel, result):
-            self.log_status.setText("⚠ This flight log doesn't match the video (different flight or time).")
+            self._log_note("⚠ This flight log doesn't match the video (different flight or time).")
             return
         self.flight_log = result
         sats = [s.satellites for s in self.tel.samples if s.satellites is not None]
@@ -599,7 +620,7 @@ class MainWindow(QMainWindow):
             parts.append(f"satellites {min(sats)}–{max(sats)}")
         if bats:
             parts.append(f"battery {bats[0]:.0f}% → {bats[-1]:.0f}%")
-        self.log_status.setText(" · ".join(parts))
+        self._log_note(" · ".join(parts))
         self._schedule_preview()
 
     def _update_info(self):
@@ -637,6 +658,10 @@ class MainWindow(QMainWindow):
             self.accent = c.name()
             self._paint_color()
             self._schedule_preview()
+
+    def _log_note(self, text: str):
+        self.log_status.setText(text)
+        self.log_status.setVisible(bool(text))
 
     def _paint_color(self):
         self.color_btn.setText(self.accent.upper())
