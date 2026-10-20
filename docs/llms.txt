@@ -49,6 +49,10 @@ Any DJI drone that records an SRT file: the newer bracket format (Neo, Neo 2, Mi
 
 The SRT is only written while Video Subtitles is switched on in DJI Fly, and it can't be recreated afterwards. Turn it on for your next flights. Without an SRT, SkyStamp has no flight data to show.
 
+### Does it use the telemetry stored inside the MP4?
+
+Yes, as an extra. Newer DJI drones also record a hidden data track in the .MP4. SkyStamp reads the GPS fix and the speed measured by the drone from it. Position and altitude still come from the .SRT, so you need both files.
+
 ### Is SkyStamp really free?
 
 Yes. It's open source under the MIT licence, with no ads, no account and no paid tier. You can also change the code and share your version.

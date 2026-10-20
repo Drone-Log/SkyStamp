@@ -38,7 +38,7 @@
  "description":"Burn DJI drone flight data (altitude, speed, GPS satellites, flight path) into your videos."}
 </script>
 <script type="application/ld+json">
-{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How do I add the SRT flight data to my DJI video?", "acceptedAnswer": {"@type": "Answer", "text": "Turn on Video Subtitles in the DJI Fly camera settings before you record. The drone then saves a .SRT file next to every .MP4. Open the video in SkyStamp, which picks up the SRT automatically, choose a style and click Create video."}}, {"@type": "Question", "name": "Which DJI drones does it work with?", "acceptedAnswer": {"@type": "Answer", "text": "Any DJI drone that records an SRT file: the newer bracket format (Neo, Neo 2, Mini 3 and 4 Pro, Air 3, Avata 2…) and the older one (Mini 2, Air 2…). It is tested most on the DJI Neo 2. If your model shows wrong data, please open an issue with a short sample SRT."}}, {"@type": "Question", "name": "My drone didn't create an SRT file. What now?", "acceptedAnswer": {"@type": "Answer", "text": "The SRT is only written while Video Subtitles is switched on in DJI Fly, and it can't be recreated afterwards. Turn it on for your next flights. Without an SRT, SkyStamp has no flight data to show."}}, {"@type": "Question", "name": "Is SkyStamp really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. It's open source under the MIT licence, with no ads, no account and no paid tier. You can also change the code and share your version."}}, {"@type": "Question", "name": "Can I put the overlay on my video in DaVinci Resolve, Premiere or Final Cut?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Choose MOV · ProRes 4444 overlay only as the output format. You get a transparent video with just the data, which you place on a track above your footage."}}, {"@type": "Question", "name": "Can it show the number of GPS satellites and the battery level?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, when you add the flight log from the DJI Fly app (FlightRecord_….txt). DJI encrypts these logs, so you need a free API key from developer.dji.com. Without a log, the overlay still shows GPS signal on/off."}}, {"@type": "Question", "name": "Can I design my own overlay?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Click Customize…, then drag elements on the preview, choose what each one shows, and save it as your own style. Styles are small files you can export and share."}}, {"@type": "Question", "name": "Does SkyStamp upload my videos?", "acceptedAnswer": {"@type": "Answer", "text": "No. Everything is processed on your computer. The only optional connections are map tiles for the mini-map and, if you add a flight log, DJI's key service to decrypt it."}}]}
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How do I add the SRT flight data to my DJI video?", "acceptedAnswer": {"@type": "Answer", "text": "Turn on Video Subtitles in the DJI Fly camera settings before you record. The drone then saves a .SRT file next to every .MP4. Open the video in SkyStamp, which picks up the SRT automatically, choose a style and click Create video."}}, {"@type": "Question", "name": "Which DJI drones does it work with?", "acceptedAnswer": {"@type": "Answer", "text": "Any DJI drone that records an SRT file: the newer bracket format (Neo, Neo 2, Mini 3 and 4 Pro, Air 3, Avata 2…) and the older one (Mini 2, Air 2…). It is tested most on the DJI Neo 2. If your model shows wrong data, please open an issue with a short sample SRT."}}, {"@type": "Question", "name": "My drone didn't create an SRT file. What now?", "acceptedAnswer": {"@type": "Answer", "text": "The SRT is only written while Video Subtitles is switched on in DJI Fly, and it can't be recreated afterwards. Turn it on for your next flights. Without an SRT, SkyStamp has no flight data to show."}}, {"@type": "Question", "name": "Does it use the telemetry stored inside the MP4?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, as an extra. Newer DJI drones also record a hidden data track in the .MP4. SkyStamp reads the GPS fix and the speed measured by the drone from it. Position and altitude still come from the .SRT, so you need both files."}}, {"@type": "Question", "name": "Is SkyStamp really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. It's open source under the MIT licence, with no ads, no account and no paid tier. You can also change the code and share your version."}}, {"@type": "Question", "name": "Can I put the overlay on my video in DaVinci Resolve, Premiere or Final Cut?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Choose MOV · ProRes 4444 overlay only as the output format. You get a transparent video with just the data, which you place on a track above your footage."}}, {"@type": "Question", "name": "Can it show the number of GPS satellites and the battery level?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, when you add the flight log from the DJI Fly app (FlightRecord_….txt). DJI encrypts these logs, so you need a free API key from developer.dji.com. Without a log, the overlay still shows GPS signal on/off."}}, {"@type": "Question", "name": "Can I design my own overlay?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Click Customize…, then drag elements on the preview, choose what each one shows, and save it as your own style. Styles are small files you can export and share."}}, {"@type": "Question", "name": "Does SkyStamp upload my videos?", "acceptedAnswer": {"@type": "Answer", "text": "No. Everything is processed on your computer. The only optional connections are map tiles for the mini-map and, if you add a flight log, DJI's key service to decrypt it."}}]}
 </script>
 <link rel="alternate" type="text/markdown" title="LLM summary" href="/llms.txt">
 <link rel="icon" href="favicon.png">
@@ -367,17 +367,17 @@
     <div class="head center">
       <div class="eyebrow">Download</div>
       <h2>Get SkyStamp</h2>
-      <p class="sub">Free, no account, nothing else to install. ffmpeg is included.</p>
+      <p class="sub">Version <span id="version">1.2.1</span>. Free, no account, nothing else to install. ffmpeg is included.</p>
     </div>
     <div class="dl">
       <a class="os" data-os="win" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-windows-x64.zip">
-        <span class="tag">Your system</span><span class="name">Windows</span><span class="meta">64-bit · .zip</span><span class="go">Download →</span></a>
+        <span class="tag">Your system</span><span class="name">Windows</span><span class="meta">64-bit · .zip · <span class="size">86 MB</span></span><span class="go">Download →</span></a>
       <a class="os" data-os="mac-arm" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-macos-arm64.dmg">
-        <span class="tag">Your system</span><span class="name">macOS</span><span class="meta">Apple Silicon (M1–M4) · .dmg</span><span class="go">Download →</span></a>
+        <span class="tag">Your system</span><span class="name">macOS</span><span class="meta">Apple Silicon (M1–M4) · .dmg · <span class="size">67 MB</span></span><span class="go">Download →</span></a>
       <a class="os" data-os="mac-intel" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-macos-intel.dmg">
-        <span class="tag">Your system</span><span class="name">macOS Intel</span><span class="meta">Older Macs · .dmg</span><span class="go">Download →</span></a>
+        <span class="tag">Your system</span><span class="name">macOS Intel</span><span class="meta">Older Macs · .dmg · <span class="size">77 MB</span></span><span class="go">Download →</span></a>
       <a class="os" data-os="linux" href="https://github.com/Drone-Log/SkyStamp/releases/latest/download/SkyStamp-linux-x86_64.AppImage">
-        <span class="tag">Your system</span><span class="name">Linux</span><span class="meta">x86_64 · AppImage</span><span class="go">Download →</span></a>
+        <span class="tag">Your system</span><span class="name">Linux</span><span class="meta">x86_64 · AppImage · <span class="size">106 MB</span></span><span class="go">Download →</span></a>
     </div>
     <p id="mobile-note" class="hint" hidden>📱 SkyStamp runs on computers. Open this page on your Mac or PC to download it.</p>
     <p id="mac-note" class="hint" hidden>Not sure which Mac you have? Apple menu → <i>About This Mac</i>: <b>Chip</b> means Apple Silicon, <b>Processor</b> means Intel.</p>
@@ -408,6 +408,10 @@
       <details class="qa">
         <summary>My drone didn't create an SRT file. What now?</summary>
         <p>The SRT is only written while <b>Video Subtitles</b> is switched on in DJI Fly, and it can't be recreated afterwards. Turn it on for your next flights. Without an SRT, SkyStamp has no flight data to show.</p>
+      </details>
+      <details class="qa">
+        <summary>Does it use the telemetry stored inside the MP4?</summary>
+        <p>Yes, as an extra. Newer DJI drones also record a hidden data track in the <code>.MP4</code>. SkyStamp reads the GPS fix and the speed measured by the drone from it. Position and altitude still come from the <code>.SRT</code>, so you need both files.</p>
       </details>
       <details class="qa">
         <summary>Is SkyStamp really free?</summary>
@@ -554,6 +558,18 @@
     }
     if (os) document.querySelector(`.os[data-os="${os}"]`)?.classList.add("mine");
   })();
+
+  // Version and file sizes from the latest release; the static values above are the fallback
+  fetch("https://api.github.com/repos/Drone-Log/SkyStamp/releases/latest")
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(rel => {
+      document.getElementById("version").textContent = rel.tag_name.replace(/^v/, "");
+      document.querySelectorAll(".os").forEach(a => {
+        const asset = rel.assets.find(x => a.href.endsWith("/" + x.name));
+        if (asset) a.querySelector(".size").textContent = `${Math.round(asset.size / 1048576)} MB`;
+      });
+    })
+    .catch(() => {});
 
   // Apple Silicon or Intel? Chromium browsers say so; elsewhere ask the GPU name.
   async function macChip() {
