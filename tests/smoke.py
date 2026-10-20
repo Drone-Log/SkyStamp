@@ -41,6 +41,11 @@ def main() -> int:
         assert out.stat().st_size > 1000, sid
         print(f"rendered {sid}: {out.stat().st_size} bytes")
 
+    out = tmp / "out_3d.mp4"  # rotating 3D map (terrain would need the network)
+    render(video, tel, out, "hud", OverlayOptions(map_tiles="none", map_view="3d"), hardware=False)
+    assert out.stat().st_size > 1000
+    print(f"rendered hud 3d: {out.stat().st_size} bytes")
+
     import skystamp.gui  # noqa: F401  (catches broken imports / Qt packaging issues)
 
     print("smoke test OK")

@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 from . import __version__
 from .maptiles import PROVIDERS
 from .editor import StyleEditor, move_element
-from .styles import DEFAULT_FIELDS, FIELDS, POSITIONS, OverlayOptions, SpecStyle
+from .styles import DEFAULT_FIELDS, FIELDS, MAP_VIEWS, POSITIONS, OverlayOptions, SpecStyle
 from .styles import library as style_lib
 from . import flightlog
 from .djmd import attach_video_meta
@@ -321,8 +321,16 @@ class MainWindow(QMainWindow):
         self.map_combo.addItem("None (path only)", "none")
         self.map_combo.setToolTip("Map tiles are downloaded once per video (internet needed) and cached.")
         self.map_combo.currentIndexChanged.connect(self._schedule_preview)
-        self.field_checks["map"].toggled.connect(lambda on: self.map_combo.setEnabled(on))
         sl.addRow("Map background", self.map_combo)
+        self.view_combo = QComboBox()
+        for k, label in MAP_VIEWS.items():
+            self.view_combo.addItem(label, k)
+        self.view_combo.setToolTip("3D views slowly circle the flight and take longer to render.\n"
+                                   "Terrain heights are downloaded once per video (internet needed) and cached.")
+        self.view_combo.currentIndexChanged.connect(self._schedule_preview)
+        sl.addRow("Map view", self.view_combo)
+        self.field_checks["map"].toggled.connect(lambda on: (self.map_combo.setEnabled(on),
+                                                             self.view_combo.setEnabled(on)))
         side.addWidget(style)
 
         out = QGroupBox("3 · Output")
@@ -393,6 +401,7 @@ class MainWindow(QMainWindow):
         self._set_combo(self.style_combo, s.value("style", "hud"))
         self._set_combo(self.units_combo, s.value("units", "metric"))
         self._set_combo(self.map_combo, s.value("map_tiles", "osm"))
+        self._set_combo(self.view_combo, s.value("map_view", "2d"))
         self._set_combo(self.position_combo, s.value("position", "bottom-left"))
         self._set_combo(self.format_combo, s.value("format", "h264"))
         self._set_combo(self.quality_combo, s.value("quality", "high"))
@@ -418,6 +427,7 @@ class MainWindow(QMainWindow):
         s.setValue("style", self.style_combo.currentData())
         s.setValue("units", self.units_combo.currentData())
         s.setValue("map_tiles", self.map_combo.currentData())
+        s.setValue("map_view", self.view_combo.currentData())
         s.setValue("position", self.position_combo.currentData())
         s.setValue("format", self.format_combo.currentData())
         s.setValue("quality", self.quality_combo.currentData())
@@ -442,6 +452,7 @@ class MainWindow(QMainWindow):
             accent=self.accent,
             position=self.position_combo.currentData(),
             map_tiles=self.map_combo.currentData(),
+            map_view=self.view_combo.currentData(),
         )
 
     # -- file selection ----------------------------------------------------

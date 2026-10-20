@@ -1,4 +1,5 @@
-"""Background map tiles (OpenStreetMap / satellite) for the flight-path mini-map.
+"""Background map tiles (OpenStreetMap / satellite) for the flight-path mini-map,
+and elevation tiles for the 3D terrain view.
 
 Only the handful of tiles around the flight are downloaded, once per video,
 and cached on disk. Without internet the map simply has no background.
@@ -40,6 +41,13 @@ PROVIDERS: dict[str, Provider] = {
                           "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                           "Esri, Maxar, Earthstar", 19),
 }
+
+# Terrarium-encoded heights (AWS Terrain Tiles, open data, no key):
+# metres = R * 256 + G + B / 256 - 32768
+ELEVATION = Provider("Terrain (AWS Terrain Tiles)",
+                     "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+                     "Terrain: AWS, Mapzen", 15)
+_SOURCES = {**PROVIDERS, "terrain": ELEVATION}
 
 _USER_AGENT = f"SkyStamp/{__version__} (+https://github.com/Drone-Log/SkyStamp)"
 _lock = threading.Lock()
@@ -88,7 +96,7 @@ def _tile(provider: str, z: int, x: int, y: int) -> Image.Image | None:
         if path.is_file():
             img = Image.open(path).convert("RGB")
         else:
-            url = PROVIDERS[provider].url.format(z=z, x=x, y=y)
+            url = _SOURCES[provider].url.format(z=z, x=x, y=y)
             req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
             with urllib.request.urlopen(req, timeout=10, context=_SSL) as r:
                 data = r.read()
@@ -108,11 +116,39 @@ def render_area(provider: str, x0: float, y0: float, x1: float, y1: float,
 
     Returns None if no tile could be loaded.
     """
-    prov = PROVIDERS[provider]
-    span = max(x1 - x0, 1e-6)
     # Zoom whose tiles are close to the output sharpness (up to 1.4× upscale is
     # invisible on video and needs ~4× fewer tiles)
-    z = math.ceil(math.log2(width / span * WORLD / TILE / 1.4))
+    got = _mosaic(provider, x0, y0, x1, y1, width, 1.4)
+    if got is None:
+        return None
+    canvas, crop = got
+    return canvas.resize((width, height), Image.LANCZOS, box=crop)
+
+
+def elevation_area(x0: float, y0: float, x1: float, y1: float, size: int):
+    """Terrain heights in metres for the mercator box, as a size×size float32
+    numpy array (row 0 = north). None if offline."""
+    import numpy as np
+
+    got = _mosaic("terrain", x0, y0, x1, y1, size, 1.0)
+    if got is None:
+        return None
+    canvas, crop = got
+    rgb = np.asarray(canvas, dtype=np.float32)
+    metres = rgb[..., 0] * 256 + rgb[..., 1] + rgb[..., 2] / 256 - 32768
+    hole = metres < -1000  # a tile that failed to load (the canvas colour decodes to ~-22 km)
+    if hole.any():
+        metres[hole] = float(np.median(metres[~hole]))
+    # Resample the decoded heights (resampling the encoded colours would mix bytes)
+    img = Image.fromarray(metres.astype(np.float32))
+    return np.asarray(img.resize((size, size), Image.BILINEAR, box=crop), dtype=np.float32)
+
+
+def _mosaic(provider, x0, y0, x1, y1, width, upscale):
+    """Tiles covering the mercator box pasted together, plus the box's pixel crop."""
+    prov = _SOURCES[provider]
+    span = max(x1 - x0, 1e-6)
+    z = math.ceil(math.log2(width / span * WORLD / TILE / upscale))
     z = max(1, min(prov.max_zoom, z))
     n = 2 ** z
     scale = TILE * n / WORLD  # tile pixels per mercator metre
@@ -139,5 +175,4 @@ def render_area(provider: str, x0: float, y0: float, x1: float, y1: float,
                 got = True
     if not got:
         return None
-    crop = (px0 - tx0 * TILE, py0 - ty0 * TILE, px1 - tx0 * TILE, py1 - ty0 * TILE)
-    return canvas.resize((width, height), Image.LANCZOS, box=crop)
+    return canvas, (px0 - tx0 * TILE, py0 - ty0 * TILE, px1 - tx0 * TILE, py1 - ty0 * TILE)
