@@ -1,4 +1,4 @@
-from .base import DEFAULT_FIELDS, FIELDS, POSITIONS, OverlayOptions, Style
+from .base import DEFAULT_FIELDS, FIELDS, MAP_VIEWS, POSITIONS, OverlayOptions, Style
 from .engine import SpecStyle
 from .library import StyleDef, all_styles, builtin_styles, load_file
 
@@ -14,5 +14,5 @@ def get_style(style_id: str) -> StyleDef:
     return load_file(style_id)
 
 
-__all__ = ["STYLES", "FIELDS", "DEFAULT_FIELDS", "POSITIONS", "OverlayOptions", "Style", "SpecStyle",
+__all__ = ["STYLES", "FIELDS", "DEFAULT_FIELDS", "MAP_VIEWS", "POSITIONS", "OverlayOptions", "Style", "SpecStyle",
            "StyleDef", "all_styles", "get_style"]

@@ -12,6 +12,9 @@ Pick the video, pick the `.SRT` file the drone saved next to it, choose a style,
 - **Styles:** HUD (drone OSD look + mini-map), Classic (data in the corners + speed box), Cinematic (lower-third panel), Minimal (one line of data), **or your own**: drag and drop elements in the built-in style editor.
 - **Mini-map over a real map:** street map (OpenStreetMap) or satellite (Esri), downloaded once per video and
   cached. Without internet, only the path is drawn.
+- **3D map view:** the path at its real height over a disc of map, seen by a camera that slowly circles the
+  flight. *3D with terrain* adds the real relief (AWS Terrain Tiles), so a flight over hills follows the ground.
+  Pick it under *Map view*, or `--map-view 3d|terrain` on the command line.
 - **Customise:** which data to show, metric/imperial units, text size, accent color, position.
 - **Output:** MP4 H.264 (plays everywhere), MP4 H.265 (smaller), or a **transparent ProRes 4444 overlay** to place
   on top of your video in DaVinci Resolve / Premiere / Final Cut.
@@ -108,6 +111,7 @@ SkyStamp has no servers, accounts, analytics or crash reporting. Videos, SRT fil
 on your computer and never uploaded. The only network connections, both optional, are:
 
 - **map tiles** for the mini-map, from OpenStreetMap or Esri (*Map background → None* turns this off);
+- **terrain heights**, from AWS Terrain Tiles, only with *Map view → 3D with terrain*;
 - **DJI's key service**, once per DJI Fly flight log you add, to get the keys that decrypt it (uses your DJI API key).
 
 SkyStamp is provided as is, without warranty (MIT License). You're responsible for following the drone and
@@ -123,6 +127,6 @@ original video and encodes it. The data refreshes 10×/s by default, while the v
 
 - Inspired by [dji-telemetry](https://github.com/jetervaz/dji-telemetry) and [GPStitch](https://github.com/Romancha/GPStitch). No code was copied.
 - DJI Fly log decoding: [dji-log-parser](https://github.com/lvauvillier/dji-log-parser) by Luc Vauvillier (MIT), bundled in release builds.
-- Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright); satellite imagery © Esri, Maxar, Earthstar Geographics. Attribution is drawn on the map.
+- Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright); satellite imagery © Esri, Maxar, Earthstar Geographics; terrain heights from [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Mapzen). Attribution is drawn on the map.
 - Font: [Barlow](https://github.com/jpt/barlow) (SIL Open Font License, `assets/fonts/OFL.txt`).
 - Video processing by [FFmpeg](https://ffmpeg.org), bundled via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) (GPL build; distributed as a separate program).

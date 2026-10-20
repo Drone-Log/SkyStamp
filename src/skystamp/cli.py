@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .styles import FIELDS, POSITIONS, STYLES, OverlayOptions
+from .styles import FIELDS, MAP_VIEWS, POSITIONS, STYLES, OverlayOptions
 from . import flightlog
 from .djmd import attach_video_meta
 from .telemetry import parse_srt
@@ -30,6 +30,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--accent", default="#38BDF8")
     p.add_argument("--map", choices=["osm", "satellite", "none"], default="osm",
                    help="mini-map background (downloaded once, cached)")
+    p.add_argument("--map-view", choices=list(MAP_VIEWS), default="2d",
+                   help="2d (from above), 3d (rotating) or terrain (3D with relief, heights downloaded once)")
     p.add_argument("--rate", type=float, default=10, help="data refreshes per second")
     p.add_argument("--offset", type=float, default=0.0, help="shift telemetry by N seconds")
     p.add_argument("--flight-log", type=Path,
@@ -42,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         p.error("no SRT next to the video; pass --srt")
     out = a.output or a.video.with_name(a.video.stem + ("_skystamp.mov" if a.format == "overlay" else "_skystamp.mp4"))
     opts = OverlayOptions(units=a.units, scale=a.scale, accent=a.accent, position=a.position,
-                          map_tiles=a.map)
+                          map_tiles=a.map, map_view=a.map_view)
     if a.fields:
         opts.fields = [f.strip() for f in a.fields.split(",") if f.strip() in FIELDS]
 

@@ -37,6 +37,8 @@ FIELDS: dict[str, str] = {
 DEFAULT_FIELDS = ["altitude", "speed", "vspeed", "home", "datetime", "camera", "gps_status", "battery", "gps",
                   "map"]
 
+MAP_VIEWS = {"2d": "2D (from above)", "3d": "3D (rotating)", "terrain": "3D with terrain"}
+
 POSITIONS = ["bottom-left", "bottom-center", "bottom-right", "top-left", "top-center", "top-right"]
 
 
@@ -50,6 +52,7 @@ class OverlayOptions:
     position: str = "bottom-left"  # used by styles that have a single block
     opacity: float = 1.0  # overall overlay opacity
     map_tiles: str = "osm"  # background of the mini-map: "osm", "satellite" or "none"
+    map_view: str = "2d"  # "2d" (from above), "3d" (rotating, flat ground) or "terrain" (3D with relief)
 
     def has(self, key: str) -> bool:
         return key in self.fields
@@ -94,7 +97,8 @@ class Style:
         self.accent = hex_rgba(options.accent)
         self.shadow = (0, 0, 0, 170)
         self._static: Image.Image | None = None
-        self._map = _TrackMap(telemetry, options.map_tiles if options.has("map") else "none")
+        self._map = _TrackMap(telemetry, options.map_tiles if options.has("map") else "none", options.map_view)
+        self.frame: Image.Image | None = None  # the overlay frame being drawn
 
     # -- public ---------------------------------------------------------
     def render(self, t: float) -> Image.Image:
@@ -102,6 +106,7 @@ class Style:
             self._static = Image.new("RGBA", (self.w, self.h), (0, 0, 0, 0))
             self.draw_static(ImageDraw.Draw(self._static), self._static)
         img = self._static.copy()
+        self.frame = img
         self.draw_dynamic(ImageDraw.Draw(img), img, self.tel.at(t), t)
         if self.opt.opacity < 1.0:
             alpha = img.getchannel("A").point(lambda a: int(a * self.opt.opacity))
@@ -230,12 +235,18 @@ class _TrackMap:
     MIN_EXTENT_M = 30.0  # without a background map: zoom close on the path
     MIN_EXTENT_TILES_M = 250.0  # with one: show some surroundings
 
-    def __init__(self, tel: Telemetry, tiles: str):
+    def __init__(self, tel: Telemetry, tiles: str, view: str = "2d"):
         pts = [(s.t, s.lat, s.lon) for s in tel.samples if s.lat is not None and s.lon is not None]
         self.ok = bool(pts)
         self.tiles = tiles if tiles in maptiles.PROVIDERS else None
+        self.scene = None
         if not self.ok:
             return
+        if view in ("3d", "terrain"):
+            from ..map3d import Scene3D
+
+            self.scene = Scene3D([(s.t, s.lat, s.lon, s.rel_alt) for s in tel.samples
+                                  if s.lat is not None and s.lon is not None], self.tiles, view == "terrain")
         self.times: list[float] = []
         self.xy: list[tuple[float, float]] = []  # web-mercator metres
         for t, lat, lon in pts:
@@ -279,6 +290,8 @@ class _TrackMap:
     def draw_static(self, d, img, box, style: Style, bg: bool):
         if not self.ok:
             return
+        if self.scene:  # the 3D view turns: everything is drawn per frame
+            return
         has_tiles = bool(self.tiles) and self._background(img, box, style)
         if bg and not has_tiles:
             d.rounded_rectangle(box, radius=style.px(14), fill=(0, 0, 0, 125),
@@ -300,6 +313,9 @@ class _TrackMap:
 
     def draw_dynamic(self, d, box, t, style: Style):
         if not self.ok:
+            return
+        if self.scene:
+            self.scene.draw(style.frame, d, box, t, style)
             return
         f = self._project(box)
         n = max(1, bisect.bisect_right(self.times, t))
