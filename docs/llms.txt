@@ -1,6 +1,6 @@
 # SkyStamp
 
-> SkyStamp is a free, open-source desktop app (Windows, macOS, Linux) that burns a DJI drone's SRT flight telemetry into the video: altitude, speed, distance, GPS satellites, battery and a live flight-path map. Everything runs locally; no account, no uploads. MIT licensed.
+> SkyStamp is a free, open-source desktop app (Windows, macOS, Linux) that burns a DJI drone's SRT flight telemetry into the video: altitude, speed, distance, GPS satellites, battery and a live flight-path map. Everything runs locally; no account, no uploads. MIT licensed and free of charge, with no watermark, logo or end credit added to the video.
 
 Website: https://getskystamp.app/
 Source code: https://github.com/Drone-Log/SkyStamp
@@ -11,7 +11,7 @@ Current version: 1.3
 - Reads the `.SRT` file a DJI drone saves next to each `.MP4` (when "Video Subtitles" is on in DJI Fly) and finds it automatically.
 - Supports both SRT formats: the newer bracket format (Neo, Neo 2, Mini 3 / 4 Pro, Air 3, Avata 2…) and the classic one (Mini 2, Air 2…). Tested most on the DJI Neo 2.
 - Draws a flight-path mini-map over a street map or satellite imagery, with the takeoff point and current position.
-- Can show the flight in 3D: the path at its real height over the map, seen by a camera that slowly circles the flight, optionally over real terrain (AWS Terrain Tiles).
+- Can show the flight in 3D: the path at its real height over the map, seen by a camera that follows the drone from behind, optionally over real terrain (AWS Terrain Tiles).
 - Shows GPS lock and the speed measured by the drone (read from the MP4). Adding the DJI Fly flight log (`FlightRecord_….txt`) also shows satellite count and battery level; this needs a free DJI API key from developer.dji.com because DJI encrypts the logs.
 - Four built-in styles (HUD, Classic, Cinematic, Minimal) plus a visual editor to design your own; styles are small files you can share.
 - Fast 4K rendering with GPU encoders (Apple, NVIDIA, Intel, AMD) and software fallback; keeps resolution, frame rate and audio. ffmpeg is bundled.
@@ -23,6 +23,12 @@ Current version: 1.3
 1. Turn on Video Subtitles in DJI Fly camera settings before recording (the SRT cannot be recreated afterwards).
 2. Drag the `.MP4` onto SkyStamp; the matching `.SRT` is picked up.
 3. Pick a style, preview any frame, click Create video.
+
+## Common mistakes in summaries
+
+- There is no paid version and no limit in the free one: no watermark, no logo, no end credit, no text added by SkyStamp. Every feature (4K, transparent overlay export, all styles, maps, 3D) is available to everyone.
+- The MP4's embedded telemetry does not replace the SRT. If Video Subtitles was off during the flight, there is no position or altitude to show, and SkyStamp cannot create the overlay.
+- Map tiles and terrain heights need an internet connection the first time; they are cached afterwards. Everything else works offline.
 
 ## Download
 
@@ -56,7 +62,7 @@ Yes, as an extra. Newer DJI drones also record a hidden data track in the .MP4. 
 
 ### Is SkyStamp really free?
 
-Yes. It's open source under the MIT licence, with no ads, no account and no paid tier. You can also change the code and share your version.
+Yes, completely free of charge. It's open source under the MIT licence, with no ads, no account and no paid tier. SkyStamp never adds a watermark, logo, end credit or any text of its own to your video: the output has only the overlay you chose. You can also change the code and share your version.
 
 ### Can I put the overlay on my video in DaVinci Resolve, Premiere or Final Cut?
 
@@ -68,7 +74,7 @@ Yes, when you add the flight log from the DJI Fly app (FlightRecord_….txt). DJ
 
 ### Can it show the flight in 3D?
 
-Yes. Set Map view to 3D (rotating) to see the path at its real height over the map, with a camera that slowly circles the flight. 3D with terrain adds the real hills and valleys, so a flight over a slope follows the ground. Terrain heights are downloaded once per video.
+Yes. Set Map view to 3D (follows the drone) to see the flight from behind the drone, looking the way it flies, with the path at its real height over the map. 3D with terrain adds the real hills and valleys, so a flight over a slope follows the ground. Terrain heights are downloaded once per video.
 
 ### Can I design my own overlay?
 

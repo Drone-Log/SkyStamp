@@ -37,7 +37,7 @@ FIELDS: dict[str, str] = {
 DEFAULT_FIELDS = ["altitude", "speed", "vspeed", "home", "datetime", "camera", "gps_status", "battery", "gps",
                   "map"]
 
-MAP_VIEWS = {"2d": "2D (from above)", "3d": "3D (rotating)", "terrain": "3D with terrain"}
+MAP_VIEWS = {"2d": "2D (from above)", "3d": "3D (follows the drone)", "terrain": "3D with terrain"}
 
 POSITIONS = ["bottom-left", "bottom-center", "bottom-right", "top-left", "top-center", "top-right"]
 
@@ -52,7 +52,7 @@ class OverlayOptions:
     position: str = "bottom-left"  # used by styles that have a single block
     opacity: float = 1.0  # overall overlay opacity
     map_tiles: str = "osm"  # background of the mini-map: "osm", "satellite" or "none"
-    map_view: str = "2d"  # "2d" (from above), "3d" (rotating, flat ground) or "terrain" (3D with relief)
+    map_view: str = "2d"  # "2d" (from above), "3d" (camera behind the drone, flat ground) or "terrain" (3D with relief)
 
     def has(self, key: str) -> bool:
         return key in self.fields
@@ -290,7 +290,7 @@ class _TrackMap:
     def draw_static(self, d, img, box, style: Style, bg: bool):
         if not self.ok:
             return
-        if self.scene:  # the 3D view turns: everything is drawn per frame
+        if self.scene:  # the 3D camera moves: everything is drawn per frame
             return
         has_tiles = bool(self.tiles) and self._background(img, box, style)
         if bg and not has_tiles:

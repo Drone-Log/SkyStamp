@@ -5,6 +5,9 @@ Pick the video, pick the `.SRT` file the drone saved next to it, choose a style,
 
 **Website: [getskystamp.app](https://getskystamp.app)** · Works on **Windows, macOS and Linux**. ffmpeg is bundled, so there's nothing else to install.
 
+Free of charge and open source (MIT). No account, no paid version, and nothing added to your video: no watermark,
+logo or end credit, only the overlay you chose.
+
 ## Features
 
 - **Video + SRT → final video.** The SRT is found automatically when it sits next to the video.
@@ -12,9 +15,9 @@ Pick the video, pick the `.SRT` file the drone saved next to it, choose a style,
 - **Styles:** HUD (drone OSD look + mini-map), Classic (data in the corners + speed box), Cinematic (lower-third panel), Minimal (one line of data), **or your own**: drag and drop elements in the built-in style editor.
 - **Mini-map over a real map:** street map (OpenStreetMap) or satellite (Esri), downloaded once per video and
   cached. Without internet, only the path is drawn.
-- **3D map view:** the path at its real height over a disc of map, seen by a camera that slowly circles the
-  flight. *3D with terrain* adds the real relief (AWS Terrain Tiles), so a flight over hills follows the ground.
-  Pick it under *Map view*, or `--map-view 3d|terrain` on the command line.
+- **3D map view:** a camera follows the drone from behind, looking the way it flies, with the path at its real
+  height over the map. *3D with terrain* adds the real relief (AWS Terrain Tiles), so a flight over hills follows
+  the ground. Pick it under *Map view*, or `--map-view 3d|terrain` on the command line.
 - **Customise:** which data to show, metric/imperial units, text size, accent color, position.
 - **Output:** MP4 H.264 (plays everywhere), MP4 H.265 (smaller), or a **transparent ProRes 4444 overlay** to place
   on top of your video in DaVinci Resolve / Premiere / Final Cut.

@@ -150,18 +150,20 @@ def _mosaic(provider, x0, y0, x1, y1, width, upscale):
     span = max(x1 - x0, 1e-6)
     z = math.ceil(math.log2(width / span * WORLD / TILE / upscale))
     z = max(1, min(prov.max_zoom, z))
-    n = 2 ** z
-    scale = TILE * n / WORLD  # tile pixels per mercator metre
+    while True:
+        n = 2 ** z
+        scale = TILE * n / WORLD  # tile pixels per mercator metre
 
-    def to_px(mx, my):
-        return (mx + WORLD / 2) * scale, (WORLD / 2 - my) * scale
+        def to_px(mx, my):
+            return (mx + WORLD / 2) * scale, (WORLD / 2 - my) * scale
 
-    px0, py0 = to_px(x0, y1)  # top-left
-    px1, py1 = to_px(x1, y0)  # bottom-right
-    tx0, ty0 = int(px0 // TILE), int(py0 // TILE)
-    tx1, ty1 = int(px1 // TILE), int(py1 // TILE)
-    if (tx1 - tx0 + 1) * (ty1 - ty0 + 1) > 64:  # safety: never bulk-download
-        return None
+        px0, py0 = to_px(x0, y1)  # top-left
+        px1, py1 = to_px(x1, y0)  # bottom-right
+        tx0, ty0 = int(px0 // TILE), int(py0 // TILE)
+        tx1, ty1 = int(px1 // TILE), int(py1 // TILE)
+        if (tx1 - tx0 + 1) * (ty1 - ty0 + 1) <= 64 or z == 1:  # never bulk-download: a bit blurrier instead
+            break
+        z -= 1
 
     canvas = Image.new("RGB", ((tx1 - tx0 + 1) * TILE, (ty1 - ty0 + 1) * TILE), (40, 44, 52))
     got = False
