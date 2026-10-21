@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -21,6 +22,25 @@ from .telemetry import Telemetry
 
 # Hide console windows spawned by subprocess on Windows
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def clock(sec: float) -> str:
+    """4:05, or 1:04:05 past an hour."""
+    h, rest = divmod(int(sec), 3600)
+    m, s = divmod(rest, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def time_left(sec: float) -> str:
+    """Rounded like a person would say it: about 1 h 5 min / 12 min / 40 s left."""
+    if sec >= 3600:
+        h, m = divmod(round(sec / 60), 60)
+        return f"about {h} h {m} min left" if m else f"about {h} h left"
+    if sec >= 90:
+        return f"about {round(sec / 60)} min left"
+    if sec >= 10:
+        return f"about {round(sec / 10) * 10} s left"
+    return "almost done"
 
 
 class RenderCancelled(Exception):
@@ -253,6 +273,7 @@ def _render_once(
     for th in threads:
         th.start()
 
+    started = time.monotonic()
     try:
         for i in range(n_frames):
             if cancel is not None and cancel.is_set():
@@ -261,7 +282,11 @@ def _render_once(
             img = style.render(t + time_offset)
             proc.stdin.write(img.tobytes())
             done = encoded[0] / max(info.duration, 0.001)
-            progress(min(done, 0.99), f"Rendering {t:5.1f}s / {info.duration:.1f}s")
+            msg = f"Rendering {clock(t)} / {clock(info.duration)}"
+            elapsed = time.monotonic() - started
+            if elapsed >= 3 and i >= n_frames // 50:  # too early, the estimate jumps around
+                msg += f" · {time_left(elapsed / (i + 1) * (n_frames - i - 1))}"
+            progress(min(done, 0.99), msg)
         proc.stdin.close()
         while proc.poll() is None:
             if cancel is not None and cancel.is_set():
