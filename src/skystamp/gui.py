@@ -333,7 +333,7 @@ class MainWindow(QMainWindow):
         for k, label in MAP_VIEWS.items():
             self.view_combo.addItem(label, k)
         self.view_combo.setToolTip("3D views follow the drone from behind, looking where it flies, and take longer to render.\n"
-                                   "Terrain heights are downloaded once per video (internet needed) and cached.")
+                                   "Terrain heights and buildings are downloaded once per video (internet needed) and cached.")
         self.view_combo.currentIndexChanged.connect(self._schedule_preview)
         sl.addRow("Map view", self.view_combo)
         self.field_checks["map"].toggled.connect(lambda on: (self.map_combo.setEnabled(on),

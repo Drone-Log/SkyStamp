@@ -37,7 +37,7 @@ FIELDS: dict[str, str] = {
 DEFAULT_FIELDS = ["altitude", "speed", "vspeed", "home", "datetime", "camera", "gps_status", "battery", "gps",
                   "map"]
 
-MAP_VIEWS = {"2d": "2D (from above)", "3d": "3D (follows the drone)", "terrain": "3D with terrain"}
+MAP_VIEWS = {"2d": "2D (from above)", "3d": "3D (follows the drone)", "terrain": "3D with terrain & buildings"}
 
 POSITIONS = ["bottom-left", "bottom-center", "bottom-right", "top-left", "top-center", "top-right"]
 
@@ -52,7 +52,7 @@ class OverlayOptions:
     position: str = "bottom-left"  # used by styles that have a single block
     opacity: float = 1.0  # overall overlay opacity
     map_tiles: str = "osm"  # background of the mini-map: "osm", "satellite" or "none"
-    map_view: str = "2d"  # "2d" (from above), "3d" (camera behind the drone, flat ground) or "terrain" (3D with relief)
+    map_view: str = "2d"  # "2d" (from above), "3d" (camera behind the drone, flat ground) or "terrain" (3D with relief and buildings)
 
     def has(self, key: str) -> bool:
         return key in self.fields
@@ -236,7 +236,10 @@ class Style:
         """The data credit, just under the map so it doesn't cover it."""
         text = self._map.credit()
         if text:
-            self.text(d, (box[2], box[3] + self.px(3)), text, self.font(10, "Medium"), (255, 255, 255, 220),
+            size = 10.0
+            while size > 7 and self.text_width(text, self.font(size, "Medium")) > box[2] - box[0]:
+                size -= 0.5  # several sources: smaller, but no wider than the map
+            self.text(d, (box[2], box[3] + self.px(3)), text, self.font(size, "Medium"), (255, 255, 255, 220),
                       anchor="ra")
 
 

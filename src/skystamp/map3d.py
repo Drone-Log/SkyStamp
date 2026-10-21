@@ -1,5 +1,5 @@
 """3D flight-path map: a chase camera behind the drone, looking the way it
-flies, over the map and optionally over real terrain.
+flies, over the map and optionally over real terrain and buildings.
 
 Units are local metres around the flight (x east, y north, z up, 0 = the
 ground at take-off). The ground is rendered column by column, near to far,
@@ -29,8 +29,12 @@ NEAR_M = 0.5  # closer than this to the camera is not drawn
 HEADING_SPAN_S = 2.0  # heading = where the drone went from t - span to t + span
 HEADING_MIN_MOVE_M = 3.0  # moving less than this over the span: keep the last heading
 HEADING_SMOOTH_S = 1.2  # camera turns are smoothed over about this long
+BUILDING_CELL_M = 0.75  # building heights are rasterised at about this resolution…
+BUILDING_GRID_MAX = 2048  # …up to this many cells per side
+BUILDINGS_REACH_M = 600.0  # buildings are loaded this far around the path (the rest is in the haze)
 MIN_RADIUS_M = 40.0  # path radius below this counts as this (sets the camera distance)
 SKY_TOP = {True: (52, 92, 140), False: (16, 20, 28)}  # with / without a map background
+WALL = (176, 174, 168)
 HAZE = {True: (178, 196, 212), False: (40, 46, 58)}
 
 
@@ -45,6 +49,7 @@ class Scene3D:
         local = np.array([((x - self.cx) / self.stretch, (y - self.cy) / self.stretch, alt or 0.0)
                           for (x, y), (_, _, _, alt) in zip(merc, samples)], dtype=np.float64)
         r_path = max(float(np.hypot(local[:, 0], local[:, 1]).max()), MIN_RADIUS_M)
+        self.r_path = r_path
         # DJI writes up to 60 samples a second: keep one every few tens of cm
         keep, last, gap = [0], local[0], r_path / 300
         for i in range(1, len(local)):
@@ -65,6 +70,7 @@ class Scene3D:
         self.tiles = tiles
         self.terrain = terrain
         self.heights = None  # metres above take-off ground, HEIGHT_GRID² (row 0 = north)
+        self.blocks = None  # building heights above the ground, square grid over the disc of radius blocks_r
         self._loaded = False
 
     # -- data ---------------------------------------------------------------
@@ -85,6 +91,7 @@ class Scene3D:
                 home = self._sample(h, self.pts[0, 0], self.pts[0, 1])
                 self.heights = h - home
                 tex = self._hillshade(tex)
+            self._load_buildings()
         self.texture = tex
         # Mip levels for distant ground, so it doesn't shimmer
         self._mips = [np.asarray(tex, dtype=np.uint8)]
@@ -94,6 +101,43 @@ class Scene3D:
         ground = self.ground_at(self.pts[:, 0], self.pts[:, 1])
         self.ground = np.column_stack([self.pts[:, :2], ground])
         self.pts[:, 2] = np.maximum(self.pts[:, 2], ground + 0.5)  # never under the terrain
+
+    def _load_buildings(self):
+        r = min(self.radius, self.r_path + BUILDINGS_REACH_M)
+        g = r * self.stretch
+        got = maptiles.buildings_area(self.cx - g, self.cy - g, self.cx + g, self.cy + g)
+        if not got:
+            return
+        n = min(BUILDING_GRID_MAX, math.ceil(2 * r / BUILDING_CELL_M))
+        img = Image.new("F", (n, n), 0.0)
+        d = ImageDraw.Draw(img)
+        k = n / (2 * r)
+        for ring, h in sorted(got, key=lambda b: b[1]):  # taller ones last, so they win where outlines overlap
+            pts = [(((x - self.cx) / self.stretch + r) * k, (r - (y - self.cy) / self.stretch) * k) for x, y in ring]
+            d.polygon(pts, fill=float(h))
+        self.blocks = np.asarray(img, dtype=np.float32)
+        self.blocks_r = r
+
+    def _wall_light(self, x, y):
+        """Brightness of the building wall at the top edge (x, y), from the way it faces."""
+        c = BUILDING_CELL_M * 4  # wide enough to smooth the stair steps of slanted outlines
+        gx = self.surface_at(x + c, y) - self.surface_at(x - c, y)
+        gy = self.surface_at(x, y + c) - self.surface_at(x, y - c)
+        norm = np.hypot(gx, gy)
+        nx, ny = -gx / np.maximum(norm, 1e-6), -gy / np.maximum(norm, 1e-6)  # outwards, away from the roof
+        light = nx * -0.6 + ny * 0.8  # same north-west light as the hills
+        return np.where(norm > 0, 0.72 + 0.28 * light, 0.72)
+
+    def surface_at(self, x, y):
+        """Ground plus buildings: what the camera sees and must stay above."""
+        z = self.ground_at(x, y)
+        if self.blocks is None:
+            return z
+        n = self.blocks.shape[0]
+        col = ((np.asarray(x) + self.blocks_r) / (2 * self.blocks_r) * n).astype(int)
+        row = ((self.blocks_r - np.asarray(y)) / (2 * self.blocks_r) * n).astype(int)
+        inside = (col >= 0) & (col < n) & (row >= 0) & (row < n)
+        return z + np.where(inside, self.blocks[np.clip(row, 0, n - 1), np.clip(col, 0, n - 1)], 0)
 
     def _grid_texture(self) -> Image.Image:
         img = Image.new("RGB", (TEXTURE, TEXTURE), (30, 34, 42))
@@ -196,7 +240,7 @@ class Scene3D:
         back = np.array([-math.sin(h) * math.cos(self.pitch), -math.cos(h) * math.cos(self.pitch),
                          math.sin(self.pitch)])
         cam = target + self.chase * back
-        cam[2] = max(cam[2], float(self.ground_at(cam[0], cam[1])) + 4)  # don't dig into a hill
+        cam[2] = max(cam[2], float(self.surface_at(cam[0], cam[1])) + 4)  # don't dig into a hill or a roof
         fwd = target - cam
         fwd /= np.linalg.norm(fwd)
         right = np.array([fwd[1], -fwd[0], 0.0])
@@ -276,7 +320,11 @@ class Scene3D:
         s = (z_ref - cam[2]) / d[..., 2]  # (size, n): columns × samples, near to far
         x = cam[0] + s * d[..., 0]
         y = cam[1] + s * d[..., 1]
-        z = self.ground_at(x, y) if self.heights is not None else np.zeros_like(x)
+        z = self.surface_at(x, y) if self.heights is not None else np.zeros_like(x)
+        # A sample much higher than the one before it in its column is the front of a building:
+        # it covers the wall's height on screen, so it gets the wall's shade
+        wall = np.zeros_like(z, dtype=bool)
+        wall[:, 1:] = z[:, 1:] - z[:, :-1] > 1.0
         q = np.stack([x - cam[0], y - cam[1], z - cam[2]], axis=-1)
         depth = q @ fwd
         dist = np.linalg.norm(q, axis=-1)
@@ -297,6 +345,9 @@ class Scene3D:
         dd = dist[cols, idx]
         footprint = dd * 2 / (ZOOM * size) / np.maximum(-d[cols, idx, 2] / np.linalg.norm(d[cols, idx], axis=-1), 0.15)
         rgb = self._colors(px, py, footprint)
+        w = wall[cols, idx]
+        if w.any():  # one colour per face, lit by its direction: the map under it would only paint stripes
+            rgb[w] = np.array(WALL, dtype=np.float32) * self._wall_light(px[w], py[w])[:, None]
         f = np.clip((dd - 0.3 * self.haze_end) / (0.7 * self.haze_end), 0, 1) ** 1.5
         img[rws, cols] = rgb * (1 - f[:, None]) + haze * f[:, None]
         return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
@@ -362,4 +413,6 @@ class Scene3D:
         credits = [maptiles.PROVIDERS[self.tiles].attribution] if self.has_tiles else []
         if self.heights is not None:
             credits.append(maptiles.ELEVATION.attribution)
+        if self.blocks is not None and not (self.has_tiles and self.tiles == "osm"):
+            credits.append(maptiles.BUILDINGS.attribution)
         return " · ".join(credits) or None

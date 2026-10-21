@@ -17,6 +17,12 @@ def _tel():
                               for i in range(40)])
 
 
+@pytest.fixture(autouse=True)
+def no_buildings(monkeypatch):
+    """Tests stay offline: no buildings unless a test adds some."""
+    monkeypatch.setattr(maptiles, "buildings_area", lambda *a: None)
+
+
 @pytest.fixture
 def hill(monkeypatch):
     """Offline terrain: a 60 m hill north-east of the take-off point."""
@@ -111,6 +117,31 @@ def test_offline_terrain_falls_back_to_flat(monkeypatch):
     monkeypatch.setattr(maptiles, "elevation_area", lambda *a: None)
     sc = _scene(terrain=True)
     assert sc.heights is None and sc.ground_image(200, sc.camera(0.0)).getbbox() is not None
+
+
+def test_buildings_rise_from_the_ground_and_keep_the_camera_above(hill, monkeypatch):
+    sc0 = _scene()
+    # a 40 m tower 30 m north of take-off, 20 m wide
+    x, y = sc0.cx, sc0.cy + 30 * sc0.stretch
+    k = 10 * sc0.stretch
+    tower = [(x - k, y - k), (x + k, y - k), (x + k, y + k), (x - k, y + k)]
+    monkeypatch.setattr(maptiles, "buildings_area", lambda *a: [(tower, 40.0)])
+    sc = _scene(terrain=True)
+    assert sc.blocks is not None
+    tx, ty = 0.0, (y - sc.cy) / sc.stretch
+    assert abs(float(sc.surface_at(tx, ty) - sc.ground_at(tx, ty)) - 40) < 0.01
+    assert abs(float(sc.surface_at(tx + 30, ty) - sc.ground_at(tx + 30, ty))) < 0.01
+    for t in (0.0, 5.0, 10.0, 19.0):
+        c = sc.camera(t)
+        assert c["pos"][2] >= float(sc.surface_at(c["pos"][0], c["pos"][1])) + 3.9
+    assert "OpenStreetMap" in sc.credit()
+
+
+def test_building_heights_from_tags():
+    assert maptiles._height({"building": "yes", "height": "23.5 m"}) == 23.5
+    assert maptiles._height({"building": "apartments", "building:levels": "10"}) == 31.0
+    assert maptiles._height({"building": "garage"}) == 3.0
+    assert maptiles._height({"building": "yes"}) == maptiles.DEFAULT_BUILDING_M
 
 
 def test_terrarium_decoding(monkeypatch):

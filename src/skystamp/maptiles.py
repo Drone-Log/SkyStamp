@@ -1,5 +1,5 @@
 """Background map tiles (OpenStreetMap / satellite) for the flight-path mini-map,
-and elevation tiles for the 3D terrain view.
+and elevation tiles and building outlines for the 3D terrain view.
 
 Only the handful of tiles around the flight are downloaded, once per video,
 and cached on disk. Without internet the map simply has no background.
@@ -8,11 +8,14 @@ and cached on disk. Without internet the map simply has no background.
 from __future__ import annotations
 
 import io
+import json
 import math
 import os
 import ssl
 import sys
 import threading
+import time
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,6 +51,19 @@ ELEVATION = Provider("Terrain (AWS Terrain Tiles)",
                      "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
                      "Terrain: AWS, Mapzen", 15)
 _SOURCES = {**PROVIDERS, "terrain": ELEVATION}
+
+# Building outlines and heights from OpenStreetMap, through the Overpass API
+BUILDINGS = Provider("Buildings (OpenStreetMap, Overpass API)", "https://overpass-api.de/api/interpreter",
+                     "© OpenStreetMap", 0)
+LEVEL_M = 3.0  # height of a storey
+ROOF_M = 1.0  # a little extra for the roof when only the storeys are known
+SMALL = {"garage": 3.0, "garages": 3.0, "shed": 3.0, "carport": 3.0, "roof": 4.0, "hut": 3.0, "kiosk": 3.0,
+         "house": 7.0, "detached": 7.0, "semidetached_house": 7.0, "terrace": 7.0, "bungalow": 4.0,
+         "cabin": 4.0, "farm_auxiliary": 5.0, "barn": 6.0, "greenhouse": 3.0, "service": 4.0}
+DEFAULT_BUILDING_M = 9.0  # three storeys when OSM doesn't say
+# Public Overpass servers are often busy: try each, with growing pauses
+OVERPASS = [BUILDINGS.url, "https://overpass.private.coffee/api/interpreter",
+            "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
 
 _USER_AGENT = f"SkyStamp/{__version__} (+https://github.com/Drone-Log/SkyStamp)"
 _lock = threading.Lock()
@@ -178,3 +194,67 @@ def _mosaic(provider, x0, y0, x1, y1, width, upscale):
     if not got:
         return None
     return canvas, (px0 - tx0 * TILE, py0 - ty0 * TILE, px1 - tx0 * TILE, py1 - ty0 * TILE)
+
+
+def inverse_mercator(x: float, y: float) -> tuple[float, float]:
+    """web-mercator metres → (lat, lon)."""
+    return math.degrees(2 * math.atan(math.exp(y / EARTH_R)) - math.pi / 2), math.degrees(x / EARTH_R)
+
+
+def _height(tags: dict) -> float:
+    """Building height in metres, from its tags or a guess from its kind."""
+    def num(v):
+        try:
+            return float(str(v).split()[0].replace(",", "."))
+        except (ValueError, IndexError):
+            return None
+
+    h = num(tags.get("height") or tags.get("building:height"))
+    if h is not None and 0 < h < 1000:
+        return h
+    levels = num(tags.get("building:levels"))
+    if levels is not None and 0 < levels < 300:
+        return levels * LEVEL_M + ROOF_M
+    return SMALL.get(tags.get("building", ""), DEFAULT_BUILDING_M)
+
+
+def buildings_area(x0: float, y0: float, x1: float, y1: float) -> list[tuple[list[tuple[float, float]], float]] | None:
+    """Building outlines (web-mercator metres) with their heights in the mercator
+    box, downloaded once and cached. None if offline."""
+    s, w = inverse_mercator(x0, y0)
+    n, e = inverse_mercator(x1, y1)
+    # Round out to ~500 m so nearby flights share the download
+    s, w = math.floor(s * 200) / 200, math.floor(w * 200) / 200
+    n, e = math.ceil(n * 200) / 200, math.ceil(e * 200) / 200
+    path = cache_dir() / "buildings" / f"{s:.3f}_{w:.3f}_{n:.3f}_{e:.3f}.json"
+    data = None
+    try:
+        if path.is_file():
+            data = json.loads(path.read_text())
+        else:
+            query = (f"[out:json][timeout:60];(way[building]({s},{w},{n},{e});"
+                     f"relation[building][type=multipolygon]({s},{w},{n},{e}););out geom;")
+            body = urllib.parse.urlencode({"data": query}).encode()
+            for attempt, url in enumerate(OVERPASS * 2):
+                try:
+                    req = urllib.request.Request(url, data=body, headers={"User-Agent": _USER_AGENT})
+                    with urllib.request.urlopen(req, timeout=90, context=_SSL) as r:
+                        data = json.loads(r.read())
+                    break
+                except Exception:  # noqa: BLE001 - busy or down: the next one
+                    if attempt == 2 * len(OVERPASS) - 1:
+                        raise
+                    time.sleep(2 ** (attempt // len(OVERPASS)))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(data))
+    except Exception:  # noqa: BLE001 - offline / busy: no buildings
+        return None
+    out = []
+    for el in data.get("elements", []):
+        h = _height(el.get("tags", {}))
+        rings = [el.get("geometry")] if el.get("type") == "way" else \
+            [m.get("geometry") for m in el.get("members", []) if m.get("role") == "outer"]
+        for ring in rings:
+            if ring and len(ring) >= 3:
+                out.append(([mercator(p["lat"], p["lon"]) for p in ring], h))
+    return out

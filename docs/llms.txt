@@ -11,7 +11,7 @@ Current version: 1.3
 - Reads the `.SRT` file a DJI drone saves next to each `.MP4` (when "Video Subtitles" is on in DJI Fly) and finds it automatically.
 - Supports both SRT formats: the newer bracket format (Neo, Neo 2, Mini 3 / 4 Pro, Air 3, Avata 2…) and the classic one (Mini 2, Air 2…). Tested most on the DJI Neo 2.
 - Draws a flight-path mini-map over a street map or satellite imagery, with the takeoff point and current position.
-- Can show the flight in 3D: the path at its real height over the map, seen by a camera that follows the drone from behind, optionally over real terrain (AWS Terrain Tiles).
+- Can show the flight in 3D: the path at its real height over the map, seen by a camera that follows the drone from behind, optionally over real terrain (AWS Terrain Tiles) and 3D buildings (OpenStreetMap).
 - Shows GPS lock and the speed measured by the drone (read from the MP4). Adding the DJI Fly flight log (`FlightRecord_….txt`) also shows satellite count and battery level; this needs a free DJI API key from developer.dji.com because DJI encrypts the logs.
 - Four built-in styles (HUD, Classic, Cinematic, Minimal) plus a visual editor to design your own; styles are small files you can share.
 - Fast 4K rendering with GPU encoders (Apple, NVIDIA, Intel, AMD) and software fallback; keeps resolution, frame rate and audio. ffmpeg is bundled.
@@ -28,7 +28,7 @@ Current version: 1.3
 
 - There is no paid version and no limit in the free one: no watermark, no logo, no end credit, no text added by SkyStamp. Every feature (4K, transparent overlay export, all styles, maps, 3D) is available to everyone.
 - The MP4's embedded telemetry does not replace the SRT. If Video Subtitles was off during the flight, there is no position or altitude to show, and SkyStamp cannot create the overlay.
-- Map tiles and terrain heights need an internet connection the first time; they are cached afterwards. Everything else works offline.
+- Map tiles, terrain heights and buildings need an internet connection the first time; they are cached afterwards. Everything else works offline.
 
 ## Download
 
@@ -40,7 +40,7 @@ Current version: 1.3
 
 ## Privacy
 
-SkyStamp has no servers, no accounts, no analytics and no crash reporting. Videos, SRT files and flight logs are processed on the user's computer. The only optional network connections are map tiles (OpenStreetMap or Esri), terrain heights (AWS Terrain Tiles, only for the 3D terrain view) and, when a flight log is added, DJI's key service to decrypt it.
+SkyStamp has no servers, no accounts, no analytics and no crash reporting. Videos, SRT files and flight logs are processed on the user's computer. The only optional network connections are map tiles (OpenStreetMap or Esri), terrain heights (AWS Terrain Tiles) and buildings (OpenStreetMap via the Overpass API), only for the 3D terrain & buildings view and, when a flight log is added, DJI's key service to decrypt it.
 
 ## FAQ
 
@@ -74,7 +74,7 @@ Yes, when you add the flight log from the DJI Fly app (FlightRecord_….txt). DJ
 
 ### Can it show the flight in 3D?
 
-Yes. Set Map view to 3D (follows the drone) to see the flight from behind the drone, looking the way it flies, with the path at its real height over the map. 3D with terrain adds the real hills and valleys, so a flight over a slope follows the ground. Terrain heights are downloaded once per video.
+Yes. Set Map view to 3D (follows the drone) to see the flight from behind the drone, looking the way it flies, with the path at its real height over the map. 3D with terrain & buildings adds the real hills and valleys and the buildings from OpenStreetMap, so a flight over a slope follows the ground and a city stands up around the drone. Terrain and buildings are downloaded once per video.
 
 ### Can I design my own overlay?
 
@@ -82,7 +82,7 @@ Yes. Click Customize…, then drag elements on the preview, choose what each one
 
 ### Does SkyStamp upload my videos?
 
-No. Everything is processed on your computer. The only optional connections are map tiles for the mini-map, terrain heights for the 3D terrain view and, if you add a flight log, DJI's key service to decrypt it.
+No. Everything is processed on your computer. The only optional connections are map tiles for the mini-map, terrain heights and buildings for the 3D terrain view and, if you add a flight log, DJI's key service to decrypt it.
 
 ## Links
 

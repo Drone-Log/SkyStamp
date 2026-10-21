@@ -31,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--map", choices=["osm", "satellite", "none"], default="osm",
                    help="mini-map background (downloaded once, cached)")
     p.add_argument("--map-view", choices=list(MAP_VIEWS), default="2d",
-                   help="2d (from above), 3d (camera behind the drone) or terrain (3D with relief, heights downloaded once)")
+                   help="2d (from above), 3d (camera behind the drone) or terrain (3D with relief and buildings, downloaded once)")
     p.add_argument("--rate", type=float, default=10, help="data refreshes per second")
     p.add_argument("--offset", type=float, default=0.0, help="shift telemetry by N seconds")
     p.add_argument("--flight-log", type=Path,
