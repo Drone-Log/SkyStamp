@@ -156,6 +156,7 @@ class SpecStyle(Style):
                 if self.opt.has("map") and self._map.ok:
                     box = self._map_box(el)
                     self.draw_map_dynamic(d, box, t)
+                    self.draw_map_credit(d, box)
                     if cap:
                         cx, cy = self._caption_pos(el, box, cap)
                         cap.draw(d, cx, cy)
@@ -316,8 +317,9 @@ class SpecStyle(Style):
             if map_side:
                 mx = bx + pad + bar * 3 + cw + map_gap
                 box = (mx, cy + pad, mx + map_side, cy + pad + map_side)
-                self.draw_map_static(d, box, bg=False)
+                self.draw_map_static(d, box, bg=False, img=self.frame)
                 self.draw_map_dynamic(d, box, t)
+                self.draw_map_credit(d, box)
             cy += body_h + vgap
             if foot:
                 foot.draw(d, ax(foot.w, x), cy)
@@ -502,7 +504,7 @@ class SpecStyle(Style):
     def _map_box(self, el):
         side = self.px(el["size"])
         cap_h = self.px(34) if el.get("caption") == "coords" and self.opt.has("gps") else 0
-        x, y = self._place(el, side, side + cap_h)
+        x, y = self._place(el, side, side + cap_h + self.map_credit_height())
         return (x, y, x + side, y + side)
 
     def _map_caption(self, el, s) -> Block | None:
@@ -513,4 +515,4 @@ class SpecStyle(Style):
     def _caption_pos(self, el, box, cap):
         align = self.h_align(el)
         x = box[0] if align == "l" else box[2] - cap.w if align == "r" else (box[0] + box[2] - cap.w) // 2
-        return x, box[3] + self.px(6)
+        return x, box[3] + self.px(6) + self.map_credit_height()

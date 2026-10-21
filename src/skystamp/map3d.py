@@ -356,9 +356,10 @@ class Scene3D:
         d.rounded_rectangle((x0, y0, x0 + side, y0 + side), radius=radius, outline=(255, 255, 255, 200),
                             width=style.px(2))
 
+    def credit(self) -> str | None:
+        if not self._loaded:
+            return None
         credits = [maptiles.PROVIDERS[self.tiles].attribution] if self.has_tiles else []
         if self.heights is not None:
             credits.append(maptiles.ELEVATION.attribution)
-        if credits:
-            style.text(d, (x0 + side - style.px(8), y0 + side - style.px(6)), " · ".join(credits),
-                       style.font(11, "Medium"), (255, 255, 255, 230), anchor="rs")
+        return " · ".join(credits) or None

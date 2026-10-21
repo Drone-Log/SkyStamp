@@ -222,11 +222,22 @@ class Style:
     def text_width(self, text: str, fnt) -> int:
         return math.ceil(fnt.getlength(text))
 
-    def draw_map_static(self, d, box, bg=True):
-        self._map.draw_static(d, self._static, box, self, bg)
+    def draw_map_static(self, d, box, bg=True, img=None):
+        self._map.draw_static(d, self._static if img is None else img, box, self, bg)
 
     def draw_map_dynamic(self, d, box, t):
         self._map.draw_dynamic(d, box, t, self)
+
+    def map_credit_height(self) -> int:
+        """Room under the map for its data credit (OpenStreetMap, Esri, terrain), if it may have one."""
+        return self.px(15) if self._map.ok and (self._map.tiles or self._map.scene) else 0
+
+    def draw_map_credit(self, d, box) -> None:
+        """The data credit, just under the map so it doesn't cover it."""
+        text = self._map.credit()
+        if text:
+            self.text(d, (box[2], box[3] + self.px(3)), text, self.font(10, "Medium"), (255, 255, 255, 220),
+                      anchor="ra")
 
 
 class _TrackMap:
@@ -240,6 +251,8 @@ class _TrackMap:
         self.ok = bool(pts)
         self.tiles = tiles if tiles in maptiles.PROVIDERS else None
         self.scene = None
+        self.has_tiles = False
+        self._bg: tuple | None = None  # (box, map image, mask) of the last background drawn
         if not self.ok:
             return
         if view in ("3d", "terrain"):
@@ -272,18 +285,29 @@ class _TrackMap:
         mx, my = (x0 + x1) / 2, (y0 + y1) / 2
         return lambda p: (mx + (p[0] - self.cx) * k, my - (p[1] - self.cy) * k)
 
+    def credit(self) -> str | None:
+        if self.scene:
+            return self.scene.credit()
+        return maptiles.PROVIDERS[self.tiles].attribution if self.has_tiles else None
+
     def _background(self, img, box, style: Style) -> bool:
         x0, y0, x1, y1 = (round(v) for v in box)
         w, h = x1 - x0, y1 - y0
-        k = self._scale(box)
-        bg = maptiles.render_area(self.tiles, self.cx - w / 2 / k, self.cy - h / 2 / k,
-                                  self.cx + w / 2 / k, self.cy + h / 2 / k, w, h)
+        if self._bg is None or self._bg[0] != (x0, y0, x1, y1):  # a map inside a panel is drawn every frame
+            k = self._scale(box)
+            bg = maptiles.render_area(self.tiles, self.cx - w / 2 / k, self.cy - h / 2 / k,
+                                      self.cx + w / 2 / k, self.cy + h / 2 / k, w, h)
+            if bg is not None:
+                # Slightly darker so the path and text stay readable
+                bg = Image.blend(bg, Image.new("RGB", bg.size, (0, 0, 0)), 0.18).convert("RGBA")
+                mask = Image.new("L", (w, h), 0)
+                ImageDraw.Draw(mask).rounded_rectangle((0, 0, w - 1, h - 1), radius=style.px(14), fill=255)
+                self._bg = ((x0, y0, x1, y1), bg, mask)
+            else:
+                self._bg = ((x0, y0, x1, y1), None, None)
+        _, bg, mask = self._bg
         if bg is None:
             return False
-        # Slightly darker so the path and text stay readable
-        bg = Image.blend(bg, Image.new("RGB", bg.size, (0, 0, 0)), 0.18).convert("RGBA")
-        mask = Image.new("L", (w, h), 0)
-        ImageDraw.Draw(mask).rounded_rectangle((0, 0, w - 1, h - 1), radius=style.px(14), fill=255)
         img.paste(bg, (x0, y0), mask)
         return True
 
@@ -292,16 +316,13 @@ class _TrackMap:
             return
         if self.scene:  # the 3D camera moves: everything is drawn per frame
             return
-        has_tiles = bool(self.tiles) and self._background(img, box, style)
+        has_tiles = self.has_tiles = bool(self.tiles) and self._background(img, box, style)
         if bg and not has_tiles:
             d.rounded_rectangle(box, radius=style.px(14), fill=(0, 0, 0, 125),
                                 outline=(255, 255, 255, 110), width=style.px(1.5))
         elif has_tiles:
             d.rounded_rectangle(box, radius=style.px(14), outline=(255, 255, 255, 200),
                                 width=style.px(2))
-            credit = maptiles.PROVIDERS[self.tiles].attribution
-            style.text(d, (box[2] - style.px(8), box[3] - style.px(6)), credit,
-                       style.font(11, "Medium"), (255, 255, 255, 230), anchor="rs")
         f = self._project(box)
         pts = [f(p) for p in self.xy]
         if len(pts) > 1:
