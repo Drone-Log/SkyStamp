@@ -86,3 +86,34 @@ def test_invalid_style_file(tmp_path):
     bad.write_text("{not json")
     with pytest.raises(ValueError):
         lib.load_file(bad)
+
+
+def _climb():
+    """0 → 150 m and 0 → 60 km/h: every value gains digits during the flight."""
+    t0 = datetime(2026, 10, 10, 16, 43, 32)
+    return Telemetry(samples=[Sample(t=i, timestamp=t0 + timedelta(seconds=i), lat=44.37 + i * 1e-4, lon=26.15,
+                                     rel_alt=i * 1.5, h_speed=i * 0.17, v_speed=1.5, dist_home=i * 11.0,
+                                     dist_total=i * 11.0, heading=i * 3.5 % 360, gps_fix=True, satellites=i // 10,
+                                     iso=100, shutter="1/1000.0", fnum=2.2, ev=0) for i in range(100)])
+
+
+@pytest.mark.parametrize("sid", list(STYLES))
+def test_layout_does_not_move_as_values_grow(sid):
+    st = STYLES[sid](1920, 1080, _climb(), OverlayOptions(map_tiles="none"))
+    st.render(1.0)
+    first = dict(st.boxes)
+    for t in (9.0, 50.0, 99.0):
+        st.render(t)
+        assert st.boxes == first, t
+
+
+@pytest.mark.parametrize("size", [(3840, 2160), (1080, 1920)])
+def test_cinematic_with_every_field_fits_the_frame(size):
+    w, h = size
+    fields = ["altitude", "speed", "vspeed", "home", "distance", "heading", "gps_status", "map", "datetime",
+              "gps", "camera"]
+    st = STYLES["cinematic"](w, h, _climb(), OverlayOptions(map_tiles="none", fields=fields, scale=1.6))
+    for t in (1.0, 99.0):
+        st.render(t)
+        for x0, y0, x1, y1 in st.boxes.values():
+            assert 0 <= x0 and x1 <= w and 0 <= y0 and y1 <= h

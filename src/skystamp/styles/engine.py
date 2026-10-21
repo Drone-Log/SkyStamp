@@ -20,6 +20,9 @@ Positions are fractions of the *safe area* (the frame minus a small margin), so
 ``x: 0, y: 1`` is the bottom-left corner on any resolution or orientation.
 ``anchor`` says which point of the element sits at that position. Sizes are
 pixels on a 1080p frame and scale with the video and the text-size setting.
+Every value gets the width of its widest reading in the whole flight, so
+nothing shifts as the numbers change, and an element too big for the safe
+area is scaled down to fit.
 
 Element types
 -------------
@@ -36,6 +39,7 @@ map       flight-path mini-map; ``size`` is its side, ``caption: "coords"``
 from __future__ import annotations
 
 import copy
+import json
 from dataclasses import dataclass
 from typing import Callable
 
@@ -106,6 +110,8 @@ class SpecStyle(Style):
         self.elements = self.spec["elements"]
         self.boxes: dict[int, tuple[int, int, int, int]] = {}
         self._has_battery = any(s.battery is not None for s in telemetry.samples)
+        self._widths: dict[tuple, int] = {}  # widest reading in the flight, per value and font
+        self._fits: dict[str, dict] = {}  # element (as JSON) -> the element scaled to fit the frame
 
     # -- geometry ----------------------------------------------------------
     _POSITIONS = {"top-left": ("tl", 0, 0), "top-center": ("t", 0.5, 0), "top-right": ("tr", 1, 0),
@@ -160,12 +166,55 @@ class SpecStyle(Style):
                     cap.draw(d, x, y)
                     self.boxes[i] = (x, y, x + cap.w, y + cap.h)
                 continue
-            block = self._block(el, s, t)
+            block = self._block(self._fitted(el), s, t)
             if block is None or block.w <= 0:
                 continue
             x, y = self._place(el, block.w, block.h)
             block.draw(d, x, y)
             self.boxes[i] = (x, y, x + block.w, y + block.h)
+
+    # -- fixed widths ------------------------------------------------------------
+    def _widest(self, key: tuple, reading: Callable) -> int:
+        """Widest ``reading(sample)`` in the flight, computed once. A reading is
+        a tuple of (text, font) pieces set side by side, or None.
+
+        Measuring text is slow at 4K, so every distinct reading is first
+        estimated from its characters' widths and only the widest few are
+        measured exactly.
+        """
+        if key not in self._widths:
+            samples = self.tel.samples
+            step = max(1, len(samples) // 3000)  # DJI writes up to 60 a second; the widths change slowly
+            readings = {r for s in samples[::step] if (r := reading(s))}
+            chars: dict[tuple, float] = {}
+
+            def char_w(c, f):
+                if (c, id(f)) not in chars:
+                    chars[c, id(f)] = f.getlength(c)
+                return chars[c, id(f)]
+
+            def rough(r):
+                return sum(char_w(c, f) for txt, f in r for c in txt)
+
+            widest = sorted(readings, key=rough)[-5:]
+            self._widths[key] = max((sum(self.text_width(txt, f) for txt, f in r) for r in widest), default=0)
+        return self._widths[key]
+
+    def _fitted(self, el: dict) -> dict:
+        """``el``, scaled down once if its widest frame would leave the safe area."""
+        key = json.dumps(el, sort_keys=True)
+        if key not in self._fits:
+            out = el
+            samples = self.tel.samples
+            probe = [samples[i * (len(samples) - 1) // 10] for i in range(11)] if samples else []
+            sizes = [b for b in (self._block(el, s, s.t) for s in probe) if b is not None]
+            if sizes:
+                w, h = max(b.w for b in sizes), max(b.h for b in sizes)
+                k = min((self.w - 2 * self.margin) / max(w, 1), (self.h - 2 * self.margin) / max(h, 1))
+                if k < 1:
+                    out = dict(el, size=el["size"] * k * 0.98)
+            self._fits[key] = out
+        return self._fits[key]
 
     # -- elements ------------------------------------------------------------
     def _block(self, el, s, t) -> Block | None:
@@ -278,15 +327,24 @@ class SpecStyle(Style):
     def _cell(self, m: Metric, mode, size, vf, uf, lf, fg, dim, acc, stroke) -> Block:
         if mode == "prefix":
             f = self.font(size, "SemiBold")
-            sep = " " if ("/" in m.unit or m.key == "heading" or m.unit == "mph") else ""
-            body = f"{m.unit} {m.value}".strip() if m.key == "heading" else f"{m.value}{sep}{m.unit}"
-            text = f"{PREFIX_LABELS[m.key]}: {body}"
-            w, h = self.text_width(text, f), self.px(size * 1.3)
+
+            def prefix_text(m):
+                sep = " " if ("/" in m.unit or m.key == "heading" or m.unit == "mph") else ""
+                body = f"{m.unit} {m.value}".strip() if m.key == "heading" else f"{m.value}{sep}{m.unit}"
+                return f"{PREFIX_LABELS[m.key]}: {body}"
+
+            text = prefix_text(m)
+            w = self._widest(("prefix", m.key, f.path, f.size),
+                             lambda s: ((prefix_text(r), f),) if (r := self._metric(m.key, s)) else None)
+            w, h = max(w, self.text_width(text, f)), self.px(size * 1.3)
             return Block(w, h, lambda d, x, y: self.text(d, (x, y + h - self.px(size * 0.3)), text, f, fg,
                                                          anchor="ls", stroke=stroke))
-        vw, uw = self.text_width(m.value, vf), self.text_width(m.unit, uf)
         gap_u = self.px(size * 0.08)
-        val_w = vw + (gap_u + uw if m.unit else 0)
+
+        vw, uw = self.text_width(m.value, vf), self.text_width(m.unit, uf)
+        widest = self._widest(("value", m.key, vf.path, vf.size, uf.size),
+                              lambda s: ((r.value, vf), (r.unit, uf)) if (r := self._metric(m.key, s)) else None)
+        val_w = max(vw + uw, widest) + (gap_u if m.unit else 0)
         val_h = self.px(size * 1.05)
         if mode == "short":
             sf = self.font(size * 0.62, "Medium")
@@ -319,29 +377,30 @@ class SpecStyle(Style):
         if m.unit:
             self.text(d, (x + vw + gap_u, base), m.unit, uf, dim, anchor="ls", stroke=stroke)
 
-    def _info_parts(self, items, s, column) -> list[str | tuple]:
+    def _info_parts(self, items, s, column) -> list[tuple[str, str | tuple]]:
+        """(item, part) pairs; in a column, the camera settings are one part per line."""
         parts: list = []
         for it in items:
             if it == "gps":
                 if self.opt.has("gps_status"):
-                    parts.append(("gps",))
+                    parts.append((it, ("gps",)))
             elif it == "datetime":
                 if self.opt.has("datetime") and s.timestamp:
-                    parts.append(s.timestamp.strftime("%Y-%m-%d  %H:%M:%S"))
+                    parts.append((it, s.timestamp.strftime("%Y-%m-%d  %H:%M:%S")))
             elif it == "date":
                 if self.opt.has("datetime") and s.timestamp:
-                    parts.append(s.timestamp.strftime("%Y-%m-%d"))
+                    parts.append((it, s.timestamp.strftime("%Y-%m-%d")))
             elif it == "time":
                 if self.opt.has("datetime") and s.timestamp:
-                    parts.append(s.timestamp.strftime("%H:%M:%S"))
+                    parts.append((it, s.timestamp.strftime("%H:%M:%S")))
             elif it == "camera":
                 cam = self.camera_parts(s)
                 if cam:
-                    parts.extend(cam) if column else parts.append("   ".join(cam))
+                    parts.extend((it, c) for c in cam) if column else parts.append((it, "   ".join(cam)))
             elif it == "coords":
                 txt = self.gps_text(s)
                 if txt:
-                    parts.append(txt)
+                    parts.append((it, txt))
         return parts
 
     def camera_parts(self, s) -> list[str]:
@@ -367,22 +426,38 @@ class SpecStyle(Style):
         fg = self._color(el)
         line_h = self.px(size * 1.3)
 
-        def part_w(p):
-            return self.gps_badge_width(s, size) if isinstance(p, tuple) else self.text_width(p, f)
+        badge_f = self.font(size * 0.9, "Bold")
+        badge_icon = self.px(size) + self.px(4)
 
+        def part_w(p, smp):
+            return self.gps_badge_width(smp, size) if isinstance(p, tuple) else self.text_width(p, f)
+
+        def slot_w(item, n):  # the widest reading in the flight of the item's n-th part
+            if item == "gps":
+                return badge_icon + self._widest(("badge", badge_f.path, badge_f.size),
+                                                 lambda smp: ((self._badge_label(smp), badge_f),))
+
+            def reading(smp):
+                got = self._info_parts([item], smp, column)
+                return ((got[n][1], f),) if n < len(got) else None
+            return self._widest(("info", item, n, column, f.path, f.size), reading)
+
+        nth = [sum(1 for it2, _ in parts[:i] if it2 == it) for i, (it, _) in enumerate(parts)]
+        slots = [max(slot_w(it, n), part_w(p, s)) for (it, p), n in zip(parts, nth)]
+        parts = [p for _, p in parts]
         sep_w = self.text_width(separator, f)
         align = self.h_align(el)
         if column:
-            w = max(part_w(p) for p in parts)
+            w = max(slots)
             h = line_h * len(parts)
         else:
-            w = sum(part_w(p) for p in parts) + sep_w * (len(parts) - 1)
+            w = sum(slots) + sep_w * (len(parts) - 1)
             h = line_h
 
         def draw(d, x, y):
             if column:
                 for i, p in enumerate(parts):
-                    pw = part_w(p)
+                    pw = part_w(p, s)
                     px_ = x if align == "l" else x + (w - pw) // 2 if align == "c" else x + w - pw
                     self._part(d, px_, y + i * line_h, p, f, fg, size, s, line_h)
             else:
@@ -392,7 +467,7 @@ class SpecStyle(Style):
                         self.text(d, (px_, y + line_h // 2), separator, f, (255, 255, 255, 200), anchor="lm")
                         px_ += sep_w
                     self._part(d, px_, y, p, f, fg, size, s, line_h)
-                    px_ += part_w(p)
+                    px_ += slots[i]
         return Block(w, h, draw)
 
     def _part(self, d, x, y, p, f, fg, size, s, line_h):
