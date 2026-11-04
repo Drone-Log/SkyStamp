@@ -1,0 +1,50 @@
+name: IndexNow
+
+# After a website change is live on GitHub Pages, tell Bing (and the other IndexNow engines:
+# Yandex, Naver, Seznam…) to recrawl it. Copilot and ChatGPT search lean on Bing's index.
+# The key is public by design: it only proves we own the site, via docs/<key>.txt.
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: read
+
+concurrency:
+  group: indexnow
+  cancel-in-progress: true
+
+env:
+  HOST: getskystamp.app
+  KEY: de2a715f8fde015a98222cd9e0f3064f
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for the Pages build of this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 40); do
+            build=$(gh api "repos/${{ github.repository }}/pages/builds/latest" --jq '.status + " " + .commit')
+            echo "$build"
+            [ "$build" = "built ${{ github.sha }}" ] && exit 0
+            sleep 15
+          done
+          echo "::error::Pages build for ${{ github.sha }} not finished after 10 minutes"
+          exit 1
+
+      - name: Ping IndexNow
+        run: |
+          code=$(curl -sS -o response.txt -w '%{http_code}' -X POST https://api.indexnow.org/indexnow \
+            -H 'Content-Type: application/json; charset=utf-8' \
+            -d "{\"host\":\"$HOST\",\"key\":\"$KEY\",\"keyLocation\":\"https://$HOST/$KEY.txt\",
+                 \"urlList\":[\"https://$HOST/\",\"https://$HOST/llms.txt\"]}")
+          cat response.txt; echo "HTTP $code"
+          # 200 = accepted, 202 = accepted, key check pending
+          [ "$code" = 200 ] || [ "$code" = 202 ]
