@@ -250,6 +250,11 @@
   footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
   footer a { color: var(--text-2); }
   footer .cols { display: flex; gap: 28px; flex-wrap: wrap; }
+  /* Scroll reveal, as on drone-log.app: blocks fade up once as they enter the screen. The
+     `reveal-armed` class is set by JS, so without JS (or with reduced motion) nothing stays hidden. */
+  .reveal-armed .reveal { opacity: 0; transform: translateY(1.5rem); }
+  .reveal-armed .reveal.is-in { opacity: 1; transform: none;
+    transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1); }
 </style>
 </head>
 <body>
@@ -595,6 +600,34 @@
     } catch {}
     return "mac-unsure";
   }
+  // Scroll reveal: transform + opacity only, IntersectionObserver, nothing on the scroll event.
+  // What is already on screen at load is shown at once, so nothing blinks away and back.
+  (() => {
+    if (!("IntersectionObserver" in window) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const els = document.querySelectorAll(
+      "section .head, .tabs, .gallery, .grid > .card, .steps > .step, .dl > .os, .notes, .faq > .qa, .fine, .sibling, .final");
+    const io = new IntersectionObserver(entries => entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const el = e.target;
+      io.unobserve(el);
+      el.classList.add("is-in");
+      // Once arrived, the element drops the reveal classes and gets its own hover transitions back.
+      // A timer, not transitionend: cards have their own transform transition, which also ends.
+      setTimeout(() => {
+        el.classList.remove("reveal", "is-in");
+        el.style.transitionDelay = "";
+      }, 800 + (parseFloat(el.style.transitionDelay) || 0) + 50);
+    }), { rootMargin: "0px 0px -10% 0px" });
+    els.forEach(el => {
+      if (el.getBoundingClientRect().top < innerHeight) return;
+      el.classList.add("reveal");
+      // Cards in a row arrive one after another, not all at once
+      const i = [...el.parentElement.children].indexOf(el);
+      if (el.matches(".card, .step, .os")) el.style.transitionDelay = `${(i % 3) * 90}ms`;
+      io.observe(el);
+    });
+    document.documentElement.classList.add("reveal-armed");
+  })();
 </script>
 </body>
 </html>
